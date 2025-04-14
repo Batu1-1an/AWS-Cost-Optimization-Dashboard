@@ -1,0 +1,7 @@
+boto3
+Flask
+python-dotenv
+plotly
+pandas # Useful for data manipulation, adding this proactively
+pytest
+moto[ec2,cloudwatch,ce] # Include extras for the services we'll mock
