@@ -3,7 +3,7 @@ from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
 from analyzer import (
     analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
-    analyze_ebs_optimization # Import new analyzer function
+    analyze_ebs_optimization, analyze_cost_anomalies # Import new analyzer functions
 )
 # Load environment variables from .env file
 load_dotenv()
@@ -51,6 +51,15 @@ def get_ebs_optimization_api():
     if ebs_opts_data is None:
         return jsonify({"error": "Failed to retrieve EBS optimization data"}), 500
     return jsonify(ebs_opts_data)
+
+@app.route('/api/cost-anomalies')
+def get_cost_anomalies_api():
+    """API endpoint to provide cost anomaly detection results."""
+    # Note: Add ability to pass history_days, std_dev_threshold from request if needed later
+    anomaly_data = analyze_cost_anomalies()
+    if anomaly_data is None:
+        return jsonify({"error": "Failed to retrieve cost anomaly data"}), 500
+    return jsonify(anomaly_data)
 
 if __name__ == '__main__':
     # Use debug=True for development, but disable in production

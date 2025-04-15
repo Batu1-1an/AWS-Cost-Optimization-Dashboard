@@ -109,3 +109,37 @@ tbody tr:hover {
 
 #untaggedResourcesTable { /* Can remove if general table style is enough */
 }
+
+#ebsOptimizationTable { /* Can remove if general table style is enough */
+}
+
+/* Anomaly Detection Styles */
+#costAnomalyInfo p {
+    margin: 5px 0;
+}
+
+#costAnomalyInfo strong {
+    color: #343a40;
+}
+
+.anomaly-detected {
+    border-left: 5px solid #dc3545; /* Red border for anomaly */
+    padding-left: 15px;
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Darker red text */
+}
+
+.anomaly-detected strong {
+    color: #721c24;
+}
+
+.no-anomaly {
+    border-left: 5px solid #28a745; /* Green border for no anomaly */
+    padding-left: 15px;
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Darker green text */
+}
+
+.no-anomaly strong {
+    color: #155724;
+}

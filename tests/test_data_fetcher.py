@@ -16,7 +16,7 @@ os.environ["AWS_DEFAULT_REGION"] = "us-east-1" # Match default in connector
 # Now import our modules AFTER setting mock env vars
 from data_fetcher import (
     get_cost_by_service, get_idle_ec2_instances, get_untagged_resources,
-    get_ebs_optimization_candidates, # Import new function
+    get_ebs_optimization_candidates, get_daily_cost_history, # Import new functions
     IDLE_CHECK_PERIOD_DAYS, IDLE_AVG_CPU_THRESHOLD, IDLE_MAX_CPU_THRESHOLD, CW_PERIOD_SECONDS,
     REQUIRED_TAGS # Import the default required tags
 )
@@ -446,3 +446,58 @@ def test_get_ebs_optimization_candidates_api_error():
 
         candidates = get_ebs_optimization_candidates(region=AWS_REGION)
         assert candidates is None
+
+
+# --- Test get_daily_cost_history ---
+
+@mock_aws
+def test_get_daily_cost_history_success():
+    """Tests successful daily cost history fetching."""
+    mock_response = {
+        'ResultsByTime': [
+            {
+                'TimePeriod': {'Start': '2024-01-01', 'End': '2024-01-02'},
+                'Total': {'UnblendedCost': {'Amount': '10.50', 'Unit': 'USD'}},
+                'Groups': [], 'Estimated': False
+            },
+            {
+                'TimePeriod': {'Start': '2024-01-02', 'End': '2024-01-03'},
+                'Total': {'UnblendedCost': {'Amount': '12.75', 'Unit': 'USD'}},
+                'Groups': [], 'Estimated': False
+            },
+             { # Test zero cost day
+                'TimePeriod': {'Start': '2024-01-03', 'End': '2024-01-04'},
+                'Total': {'UnblendedCost': {'Amount': '0.00', 'Unit': 'USD'}},
+                'Groups': [], 'Estimated': False
+            },
+        ],
+        'ResponseMetadata': {}
+    }
+    with patch('data_fetcher.get_client') as mock_get_client:
+        mock_ce = Mock()
+        mock_ce.get_cost_and_usage.return_value = mock_response
+        mock_get_client.return_value = mock_ce
+
+        history = get_daily_cost_history(days=3)
+
+        assert history is not None
+        assert len(history) == 3
+        assert history['2024-01-01'] == 10.50
+        assert history['2024-01-02'] == 12.75
+        assert history['2024-01-03'] == 0.00
+        mock_ce.get_cost_and_usage.assert_called_once()
+        # Check granularity was DAILY
+        call_args, call_kwargs = mock_ce.get_cost_and_usage.call_args
+        assert call_kwargs.get('Granularity') == 'DAILY'
+
+
+@mock_aws
+def test_get_daily_cost_history_failure():
+    """Tests handling errors during daily cost history fetching."""
+    with patch('data_fetcher.get_client') as mock_get_client:
+        mock_ce = Mock()
+        mock_ce.get_cost_and_usage.side_effect = Exception("CE History Error")
+        mock_get_client.return_value = mock_ce
+
+        history = get_daily_cost_history(days=5)
+        assert history is None

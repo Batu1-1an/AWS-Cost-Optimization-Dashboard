@@ -1,8 +1,9 @@
 import logging
 from data_fetcher import (
     get_cost_by_service, get_idle_ec2_instances, get_untagged_resources,
-    get_ebs_optimization_candidates # Import new fetcher function
+    get_ebs_optimization_candidates, get_daily_cost_history # Import new fetcher functions
 )
+import numpy as np # For standard deviation calculation
 from aws_connector import AWS_REGION # Import default region for convenience
 
 # Configure logging
@@ -92,6 +93,70 @@ def analyze_ebs_optimization(region=AWS_REGION):
     logging.info(f"EBS optimization analysis complete. Found {len(ebs_opts.get('UnattachedVolumes',[]))} unattached, {len(ebs_opts.get('Gp2Volumes',[]))} gp2 volumes.")
     return ebs_opts
 
+def analyze_cost_anomalies(history_days=60, std_dev_threshold=2.5):
+    """
+    Analyzes daily cost history to find anomalies (significant spikes).
+    Uses a simple standard deviation approach.
+
+    Args:
+        history_days (int): How many days of history to fetch for analysis.
+        std_dev_threshold (float): How many standard deviations above the mean
+                                   the latest cost must be to be considered an anomaly.
+
+    Returns:
+        dict: Information about the latest cost and whether it's anomalous,
+              or None if fetching or analysis fails.
+              Example: {'latest_date': '2024-01-10', 'latest_cost': 150.5,
+                        'average_cost': 100.0, 'std_dev': 15.0,
+                        'threshold': 137.5, 'is_anomaly': True}
+    """
+    logging.info(f"Starting cost anomaly analysis using last {history_days} days.")
+    daily_costs = get_daily_cost_history(days=history_days)
+
+    if daily_costs is None or len(daily_costs) < 2: # Need at least 2 points for std dev
+        logging.error("Insufficient daily cost data for anomaly analysis.")
+        return None
+
+    # Convert costs to a list/array for calculation
+    costs = list(daily_costs.values())
+    dates = list(daily_costs.keys())
+
+    # Use all but the most recent day for calculating baseline mean/std dev
+    if len(costs) > 1:
+        baseline_costs = np.array(costs[:-1])
+        average_cost = np.mean(baseline_costs)
+        std_dev = np.std(baseline_costs)
+    else: # Handle edge case with only 1 day (cannot calculate baseline)
+        average_cost = costs[0]
+        std_dev = 0
+
+    latest_date = dates[-1]
+    latest_cost = costs[-1]
+
+    # Calculate the anomaly threshold
+    anomaly_threshold = average_cost + (std_dev * std_dev_threshold)
+
+    # Check if the latest cost exceeds the threshold
+    is_anomaly = latest_cost > anomaly_threshold and std_dev > 0 # Avoid flagging if std dev is 0
+
+    result = {
+        'latest_date': latest_date,
+        'latest_cost': latest_cost,
+        'average_cost': round(average_cost, 2),
+        'std_dev': round(std_dev, 2),
+        'threshold': round(anomaly_threshold, 2),
+        'is_anomaly': is_anomaly,
+        'history_days': history_days,
+        'std_dev_threshold': std_dev_threshold
+    }
+
+    if is_anomaly:
+        logging.warning(f"Cost anomaly detected! Date: {latest_date}, Cost: ${latest_cost:.2f}, Threshold: ${anomaly_threshold:.2f}")
+    else:
+        logging.info("No cost anomaly detected.")
+
+    return result
+
 # Example usage (optional, for testing this module directly)
 if __name__ == '__main__':
     logging.info("--- Testing Analyzer ---")
@@ -137,6 +202,18 @@ if __name__ == '__main__':
              print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
     else:
         print("Could not analyze EBS optimization data.")
+
+    print("\nAnalyzing Cost Anomalies...")
+    anomaly_result = analyze_cost_anomalies()
+    if anomaly_result:
+        print(f"  Latest Date: {anomaly_result['latest_date']}")
+        print(f"  Latest Cost: ${anomaly_result['latest_cost']:.2f}")
+        print(f"  Avg Cost (prev {anomaly_result['history_days']-1} days): ${anomaly_result['average_cost']:.2f}")
+        print(f"  Std Dev: ${anomaly_result['std_dev']:.2f}")
+        print(f"  Threshold: ${anomaly_result['threshold']:.2f}")
+        print(f"  Is Anomaly: {anomaly_result['is_anomaly']}")
+    else:
+        print("Could not perform cost anomaly analysis.")
 
 
     logging.info("--- Analyzer Test Complete ---")

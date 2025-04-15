@@ -5,3 +5,4 @@ plotly
 pandas # Useful for data manipulation, adding this proactively
 pytest
 moto[ec2,cloudwatch,ce] # Include extras for the services we'll mock
+numpy # For numerical operations (std dev) in anomaly detection

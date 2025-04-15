@@ -261,6 +261,57 @@ def get_untagged_resources(required_tags=None, region=None): # Corrected signatu
     return untagged_resources
 
 
+def get_daily_cost_history(days=60):
+    """
+    Fetches total daily cost data from AWS Cost Explorer for anomaly detection.
+
+    Args:
+        days (int): The number of past days to fetch data for.
+
+    Returns:
+        dict: A dictionary with dates (YYYY-MM-DD strings) as keys and
+              total costs as values, or None if an error occurs.
+    """
+    ce_client = get_client('ce')
+    if not ce_client:
+        logging.error("Cost Explorer client is not available.")
+        return None
+
+    # Go back `days + 1` to ensure we have enough data for comparison
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+
+    # Format dates as YYYY-MM-DD strings
+    start_str = start_date.strftime('%Y-%m-%d')
+    end_str = end_date.strftime('%Y-%m-%d')
+
+    logging.info(f"Fetching daily cost history from {start_str} to {end_str}")
+
+    try:
+        response = ce_client.get_cost_and_usage(
+            TimePeriod={
+                'Start': start_str,
+                'End': end_str
+            },
+            Granularity='DAILY', # Fetch daily data
+            Metrics=['UnblendedCost']
+            # No GroupBy needed for total daily cost
+        )
+
+        daily_costs = {}
+        for result in response.get('ResultsByTime', []):
+            date_str = result['TimePeriod']['Start']
+            cost = float(result['Total']['UnblendedCost']['Amount'])
+            daily_costs[date_str] = round(cost, 2)
+
+        logging.info(f"Successfully fetched daily costs for {len(daily_costs)} days.")
+        # Sort by date, although Cost Explorer usually returns it sorted
+        return dict(sorted(daily_costs.items()))
+
+    except Exception as e:
+        logging.error(f"Error fetching daily cost history from Cost Explorer: {e}")
+        return None
+
 def get_ebs_optimization_candidates(region=None):
     """
     Finds EBS volumes that are optimization candidates:
@@ -371,6 +422,15 @@ if __name__ == '__main__':
              print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
     else:
         print("Could not fetch EBS optimization data.")
+
+    print("\nFetching Daily Cost History...")
+    daily_history = get_daily_cost_history(days=7)
+    if daily_history:
+        print("Daily Costs (Last 7 Days):")
+        for date, cost in daily_history.items():
+            print(f"  {date}: ${cost:.2f}")
+    else:
+        print("Could not fetch daily cost history.")
 
 
     logging.info("--- Data Fetcher Test Complete ---")

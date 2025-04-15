@@ -118,33 +118,59 @@ def test_get_ebs_optimization_failure(mock_analyze, client):
     assert "error" in json.loads(response.data)
     mock_analyze.assert_called_once()
 
-# --- Test /api/ebs-optimization ---
+# --- Test /api/cost-anomalies ---
 
-@patch('app.analyze_ebs_optimization')
-def test_get_ebs_optimization_success(mock_analyze, client):
-    """Tests successful response from /api/ebs-optimization."""
-    mock_data = {"UnattachedVolumes": [{"ResourceId": "vol-123"}], "Gp2Volumes": []}
+@patch('app.analyze_cost_anomalies')
+def test_get_cost_anomalies_success(mock_analyze, client):
+    """Tests successful response from /api/cost-anomalies."""
+    mock_data = {'latest_date': '2024-01-05', 'latest_cost': 150.0, 'average_cost': 100.0, 'std_dev': 20.0, 'threshold': 150.0, 'is_anomaly': True, 'history_days': 30, 'std_dev_threshold': 2.5}
     mock_analyze.return_value = mock_data
 
-    response = client.get('/api/ebs-optimization')
+    response = client.get('/api/cost-anomalies')
 
     assert response.status_code == 200
     assert response.content_type == 'application/json'
     assert json.loads(response.data) == mock_data
     mock_analyze.assert_called_once()
 
-@patch('app.analyze_ebs_optimization')
-def test_get_ebs_optimization_failure(mock_analyze, client):
-    """Tests error response when analyzer fails for EBS optimization."""
+@patch('app.analyze_cost_anomalies')
+def test_get_cost_anomalies_failure(mock_analyze, client):
+    """Tests error response when analyzer fails for cost anomalies."""
     mock_analyze.return_value = None
 
-    response = client.get('/api/ebs-optimization')
+    response = client.get('/api/cost-anomalies')
 
     assert response.status_code == 500
     assert response.content_type == 'application/json'
     assert "error" in json.loads(response.data)
     mock_analyze.assert_called_once()
 
+# --- Test /api/cost-anomalies ---
+
+@patch('app.analyze_cost_anomalies')
+def test_get_cost_anomalies_success(mock_analyze, client):
+    """Tests successful response from /api/cost-anomalies."""
+    mock_data = {'latest_date': '2024-01-10', 'latest_cost': 150.5, 'is_anomaly': True}
+    mock_analyze.return_value = mock_data
+
+    response = client.get('/api/cost-anomalies')
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert json.loads(response.data) == mock_data
+    mock_analyze.assert_called_once()
+
+@patch('app.analyze_cost_anomalies')
+def test_get_cost_anomalies_failure(mock_analyze, client):
+    """Tests error response when analyzer fails for cost anomalies."""
+    mock_analyze.return_value = None
+
+    response = client.get('/api/cost-anomalies')
+
+    assert response.status_code == 500
+    assert response.content_type == 'application/json'
+    assert "error" in json.loads(response.data)
+    mock_analyze.assert_called_once()
 # --- Test / route ---
 
 @patch('app.render_template') # Mock render_template to avoid actual rendering

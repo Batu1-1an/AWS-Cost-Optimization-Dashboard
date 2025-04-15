@@ -2,7 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchCostData();
     fetchIdleInstances();
     fetchUntaggedResources();
-    fetchEbsOptimizationData(); // Add call for EBS optimization data
+    fetchEbsOptimizationData();
+    fetchCostAnomalyData(); // Add call for cost anomaly data
 });
 
 function fetchCostData() {
@@ -167,4 +168,62 @@ function renderEbsOptimizationTable(data) {
         row.insertCell(3).textContent = volume.CurrentType || 'N/A'; // Display type if available (gp2)
         row.insertCell(4).textContent = volume.Reason;
     });
+}
+
+function fetchCostAnomalyData() {
+    fetch('/api/cost-anomalies')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            renderCostAnomalyInfo(data);
+        })
+        .catch(error => {
+            console.error('Error fetching cost anomaly data:', error);
+            const infoDiv = document.getElementById('costAnomalyInfo');
+            infoDiv.innerHTML = '<p style="color: red;">Could not load cost anomaly data.</p>';
+        });
+}
+
+function renderCostAnomalyInfo(data) {
+    const infoDiv = document.getElementById('costAnomalyInfo');
+    infoDiv.innerHTML = ''; // Clear previous data
+
+    if (!data) {
+        infoDiv.innerHTML = '<p>Could not retrieve anomaly data.</p>';
+        return;
+    }
+
+    const isAnomaly = data.is_anomaly;
+    const anomalyClass = isAnomaly ? 'anomaly-detected' : 'no-anomaly';
+    const anomalyText = isAnomaly ? 'Anomaly Detected!' : 'No Anomaly Detected';
+
+    // Add specific class for styling
+    infoDiv.classList.add(anomalyClass);
+
+    // Create elements to display the info
+    const statusP = document.createElement('p');
+    statusP.innerHTML = `<strong>Status:</strong> ${anomalyText}`;
+    infoDiv.appendChild(statusP);
+
+    const latestP = document.createElement('p');
+    latestP.innerHTML = `<strong>Latest Cost (${data.latest_date}):</strong> $${data.latest_cost.toFixed(2)}`;
+    infoDiv.appendChild(latestP);
+
+    const avgP = document.createElement('p');
+    avgP.innerHTML = `<strong>Avg. Cost (prev. ${data.history_days - 1} days):</strong> $${data.average_cost.toFixed(2)}`;
+    infoDiv.appendChild(avgP);
+
+    const thresholdP = document.createElement('p');
+    thresholdP.innerHTML = `<strong>Anomaly Threshold:</strong> $${data.threshold.toFixed(2)} (Avg + ${data.std_dev_threshold} * StdDev)`;
+    infoDiv.appendChild(thresholdP);
+
+    if (isAnomaly) {
+        const explanationP = document.createElement('p');
+        explanationP.textContent = `The latest cost is significantly higher than the recent average based on the defined threshold.`;
+        infoDiv.appendChild(explanationP);
+    }
 }
