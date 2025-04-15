@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 import pandas as pd
 from aws_connector import get_client, AWS_REGION
+from aws_regions import AWS_REGIONS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -167,18 +168,11 @@ def get_idle_ec2_instances(region=AWS_REGION):
         logging.error(f"Error describing EC2 instances in region {region}: {e}")
         return None
 
+from utils import _check_missing_tags # Ensure import is here
 
-def _check_missing_tags(resource_tags_list, required_tags_set):
-    """Helper function to find missing tags from a list of tag dictionaries."""
-    if not resource_tags_list: # Handle case where 'Tags' key might be missing entirely
-        return list(required_tags_set) # All required tags are missing
+# Remove the old function definition below
 
-    # Convert [{'Key': k, 'Value': v}, ...] to a set of keys {'k', ...}
-    present_tags_set = {tag['Key'] for tag in resource_tags_list}
-    missing = list(required_tags_set - present_tags_set)
-    return missing
-
-def get_untagged_resources(required_tags=None, region=AWS_REGION):
+def get_untagged_resources(required_tags=None, region=None): # Corrected signature from previous attempt
     """
     Finds EC2 instances and EBS volumes missing specified required tags.
 
@@ -191,7 +185,7 @@ def get_untagged_resources(required_tags=None, region=AWS_REGION):
         dict: A dictionary containing lists of untagged 'Instances' and 'Volumes',
               or None if an error occurs. Each item includes the resource ID and missing tags.
     """
-    ec2_client = get_client('ec2', region_name=region)
+    ec2_client = get_client('ec2', region_name=region or AWS_REGION)
     if not ec2_client:
         logging.error(f"EC2 client not available for region {region}.")
         return None
@@ -204,7 +198,7 @@ def get_untagged_resources(required_tags=None, region=AWS_REGION):
         return {'Instances': [], 'Volumes': []}
 
     untagged_resources = {'Instances': [], 'Volumes': []}
-    logging.info(f"Checking for resources missing tags {required_tags} in region {region}...")
+    logging.info(f"Checking for resources missing tags {required_tags} in region {region or AWS_REGION}...")
 
     # --- Check EC2 Instances ---
     try:
@@ -231,7 +225,7 @@ def get_untagged_resources(required_tags=None, region=AWS_REGION):
                         logging.debug(f"Instance {instance_id} missing tags: {missing_tags}")
 
     except Exception as e:
-        logging.error(f"Error describing EC2 instances for tag check in region {region}: {e}")
+        logging.error(f"Error describing EC2 instances for tag check in region {region or AWS_REGION}: {e}")
         # Continue to check volumes if possible, but maybe return partial results or None?
         # For now, let's return None if instance check fails significantly
         return None
@@ -258,13 +252,79 @@ def get_untagged_resources(required_tags=None, region=AWS_REGION):
                     logging.debug(f"Volume {volume_id} missing tags: {missing_tags}")
 
     except Exception as e:
-        logging.error(f"Error describing EBS volumes for tag check in region {region}: {e}")
+        logging.error(f"Error describing EBS volumes for tag check in region {region or AWS_REGION}: {e}")
         # Allow returning partial results if instances were checked successfully
         # but volumes failed. The caller can decide how to handle this.
         # If instance check also failed, we would have returned None already.
 
-    logging.info(f"Found {len(untagged_resources['Instances'])} untagged instances and {len(untagged_resources['Volumes'])} untagged volumes.")
+    logging.info(f"Found {len(untagged_resources['Instances'])} untagged instances and {len(untagged_resources['Volumes'])} untagged volumes in region {region or AWS_REGION}.")
     return untagged_resources
+
+
+def get_ebs_optimization_candidates(region=None):
+    """
+    Finds EBS volumes that are optimization candidates:
+    1. Unattached (State='available')
+    2. Using gp2 type (potential gp3 upgrade candidate)
+
+    Args:
+        region (str, optional): The AWS region to check volumes in. Defaults to AWS_REGION.
+
+    Returns:
+        dict: A dictionary containing lists of 'UnattachedVolumes' and 'Gp2Volumes',
+              or None if an error occurs.
+    """
+    target_region = region or AWS_REGION
+    ec2_client = get_client('ec2', region_name=target_region)
+    if not ec2_client:
+        logging.error(f"EC2 client not available for region {target_region}.")
+        return None
+
+    optimization_candidates = {'UnattachedVolumes': [], 'Gp2Volumes': []}
+    logging.info(f"Checking for EBS optimization candidates in region {target_region}...")
+
+    try:
+        paginator = ec2_client.get_paginator('describe_volumes')
+        volume_pages = paginator.paginate() # Get all volumes
+
+        for page in volume_pages:
+            for volume in page.get('Volumes', []):
+                volume_id = volume['VolumeId']
+                volume_state = volume['State']
+                volume_type = volume['VolumeType']
+                volume_size = volume['Size'] # Size in GiB
+
+                # Check if unattached
+                if volume_state == 'available':
+                    optimization_candidates['UnattachedVolumes'].append({
+                        'ResourceId': volume_id,
+                        'ResourceType': 'EBS Volume',
+                        'Region': target_region,
+                        'SizeGiB': volume_size,
+                        'Reason': 'Unattached (Available)'
+                    })
+                    logging.debug(f"Volume {volume_id} is unattached.")
+
+                # Check if gp2 (potential gp3 candidate)
+                # Note: Further analysis needed to confirm gp3 is cheaper/better.
+                # This just flags them.
+                if volume_type == 'gp2':
+                    optimization_candidates['Gp2Volumes'].append({
+                        'ResourceId': volume_id,
+                        'ResourceType': 'EBS Volume',
+                        'Region': target_region,
+                        'SizeGiB': volume_size,
+                        'CurrentType': 'gp2',
+                        'Reason': 'Potential gp3 Upgrade Candidate'
+                    })
+                    logging.debug(f"Volume {volume_id} is gp2 type.")
+
+    except Exception as e:
+        logging.error(f"Error describing EBS volumes for optimization check in region {target_region}: {e}")
+        return None # Return None on error
+
+    logging.info(f"Found {len(optimization_candidates['UnattachedVolumes'])} unattached volumes and {len(optimization_candidates['Gp2Volumes'])} gp2 volumes.")
+    return optimization_candidates
 
 # Example usage (optional, for testing this module directly)
 if __name__ == '__main__':
@@ -289,9 +349,9 @@ if __name__ == '__main__':
         print("Could not fetch idle instance data.")
 
     print("\nFetching Untagged Resources...")
-    untagged = get_untagged_resources()
+    untagged = get_untagged_resources(region='us-west-2')  # Example with a specific region
     if untagged is not None:
-        print(f"Found {len(untagged['Instances'])} untagged instances in {AWS_REGION}:")
+        print(f"Found {len(untagged['Instances'])} untagged instances in us-west-2:")
         for inst in untagged['Instances']:
             print(f"  ID: {inst['ResourceId']}, Missing: {inst['MissingTags']}")
         print(f"Found {len(untagged['Volumes'])} untagged volumes in {AWS_REGION}:")
@@ -299,6 +359,18 @@ if __name__ == '__main__':
              print(f"  ID: {vol['ResourceId']}, Missing: {vol['MissingTags']}")
     else:
         print("Could not fetch untagged resource data.")
+
+    print("\nFetching EBS Optimization Candidates...")
+    ebs_opts = get_ebs_optimization_candidates()
+    if ebs_opts is not None:
+        print(f"Found {len(ebs_opts['UnattachedVolumes'])} unattached volumes in {AWS_REGION}:")
+        for vol in ebs_opts['UnattachedVolumes']:
+            print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
+        print(f"Found {len(ebs_opts['Gp2Volumes'])} gp2 volumes in {AWS_REGION}:")
+        for vol in ebs_opts['Gp2Volumes']:
+             print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
+    else:
+        print("Could not fetch EBS optimization data.")
 
 
     logging.info("--- Data Fetcher Test Complete ---")

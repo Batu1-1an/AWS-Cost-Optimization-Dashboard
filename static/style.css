@@ -1,60 +1,111 @@
+/* General Styles */
 body {
-    font-family: sans-serif;
-    margin: 20px;
-    background-color: #f4f4f4;
-    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa; /* Lighter background */
+    color: #495057; /* Softer text color */
+    line-height: 1.6;
 }
 
 h1 {
     text-align: center;
-    color: #555;
+    color: #343a40; /* Darker heading */
+    margin-top: 30px;
+    margin-bottom: 30px;
+    font-weight: 300; /* Lighter font weight */
 }
 
 h2 {
-    color: #444;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 5px;
-    margin-top: 30px;
+    color: #007bff; /* Primary color for section titles */
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 8px;
+    margin-top: 0; /* Remove top margin as it's handled by container padding */
+    margin-bottom: 20px;
+    font-weight: 400;
 }
 
 .container {
-    display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-    gap: 20px; /* Space between chart and table */
-    margin-top: 20px;
+    max-width: 1200px; /* Limit overall width */
+    margin: 20px auto; /* Center container */
+    padding: 0 15px; /* Add padding on sides */
+    display: grid; /* Use grid for better layout control */
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Responsive columns */
+    gap: 30px; /* Space between cards */
 }
 
-.chart-container, .table-container {
-    background-color: #fff;
-    padding: 20px;
+/* Card Styles */
+.card {
+    background-color: #ffffff;
+    padding: 25px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    flex: 1; /* Allow containers to grow */
-    min-width: 300px; /* Minimum width before wrapping */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Softer shadow */
+    border: 1px solid #e9ecef; /* Subtle border */
+    /* Removed flex and min-width, handled by grid */
+}
+
+/* Specific container types inherit from card */
+.chart-container {
+    /* Inherits from .card */
+    display: flex; /* Center chart */
+    flex-direction: column;
+    align-items: center;
+}
+
+.table-container {
+     /* Inherits from .card */
+     overflow-x: auto; /* Allow horizontal scrolling for tables if needed */
 }
 
 #costChart {
-    width: 100%;
-    min-height: 350px;
+    max-width: 100%; /* Ensure chart doesn't overflow container */
+    height: auto; /* Adjust height automatically */
+    min-height: 400px; /* Keep a minimum height */
 }
 
-#idleInstancesTable {
+/* Table Styles */
+table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
 }
 
-#idleInstancesTable th, #idleInstancesTable td {
-    border: 1px solid #ddd;
-    padding: 8px;
+th, td {
+    border: 1px solid #dee2e6; /* Lighter border color */
+    padding: 12px 15px; /* More padding */
     text-align: left;
+    vertical-align: top;
 }
 
-#idleInstancesTable th {
-    background-color: #e9e9e9;
-    font-weight: bold;
+th {
+    background-color: #e9ecef; /* Lighter header background */
+    color: #495057;
+    font-weight: 600; /* Slightly bolder */
+    text-transform: uppercase; /* Uppercase headers */
+    font-size: 0.9em;
+    letter-spacing: 0.5px;
 }
 
-#idleInstancesTable tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+tbody tr {
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s ease; /* Smooth hover transition */
+}
+
+tbody tr:nth-child(even) {
+    background-color: #f8f9fa; /* Very light alternating row color */
+}
+
+tbody tr:last-of-type {
+    border-bottom: 2px solid #007bff; /* Highlight bottom border */
+}
+
+tbody tr:hover {
+    background-color: #e2e6ea; /* Hover effect */
+}
+
+/* Specific Table IDs (optional if general table style is sufficient) */
+#idleInstancesTable { /* Can remove if general table style is enough */
+}
+
+#untaggedResourcesTable { /* Can remove if general table style is enough */
 }

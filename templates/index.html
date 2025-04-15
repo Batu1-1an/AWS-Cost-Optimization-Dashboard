@@ -13,12 +13,12 @@
     <h1>AWS Cost Optimization Dashboard</h1>
 
     <div class="container">
-        <div class="chart-container">
+        <div class="card chart-container"> <!-- Add card class -->
             <h2>Cost Breakdown by Service</h2>
             <div id="costChart"></div>
         </div>
 
-        <div class="table-container">
+        <div class="card table-container"> <!-- Add card class -->
             <h2>Potentially Idle EC2 Instances</h2>
             <table id="idleInstancesTable">
                 <thead>
@@ -35,7 +35,7 @@
             </table>
         </div>
 
-        <div class="table-container">
+        <div class="card table-container"> <!-- Add card class -->
             <h2>Untagged Resources (EC2 Instances & EBS Volumes)</h2>
             <table id="untaggedResourcesTable">
                 <thead>
@@ -44,6 +44,24 @@
                         <th>Resource Type</th>
                         <th>Region</th>
                         <th>Missing Tags</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Table rows will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card table-container"> <!-- Add card class -->
+            <h2>EBS Volume Optimization Candidates</h2>
+            <table id="ebsOptimizationTable">
+                <thead>
+                    <tr>
+                        <th>Volume ID</th>
+                        <th>Region</th>
+                        <th>Size (GiB)</th>
+                        <th>Type</th>
+                        <th>Reason</th>
                     </tr>
                 </thead>
                 <tbody>

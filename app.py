@@ -1,7 +1,10 @@
 import os
 from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
-from analyzer import analyze_cost_data, analyze_idle_instances, analyze_untagged_resources # Import analyzer functions
+from analyzer import (
+    analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
+    analyze_ebs_optimization # Import new analyzer function
+)
 # Load environment variables from .env file
 load_dotenv()
 
@@ -39,6 +42,15 @@ def get_untagged_resources_api():
     if untagged_data is None:
         return jsonify({"error": "Failed to retrieve untagged resource data"}), 500
     return jsonify(untagged_data)
+
+@app.route('/api/ebs-optimization')
+def get_ebs_optimization_api():
+    """API endpoint to provide EBS optimization candidates."""
+    # Note: Add ability to pass region from request if needed later
+    ebs_opts_data = analyze_ebs_optimization()
+    if ebs_opts_data is None:
+        return jsonify({"error": "Failed to retrieve EBS optimization data"}), 500
+    return jsonify(ebs_opts_data)
 
 if __name__ == '__main__':
     # Use debug=True for development, but disable in production

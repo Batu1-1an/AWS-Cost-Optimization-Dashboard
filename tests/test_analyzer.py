@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import patch
-from analyzer import analyze_cost_data, analyze_idle_instances
+from analyzer import (
+    analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
+    analyze_ebs_optimization # Import new function
+)
 
 # Basic test structure - more tests to be added
 
@@ -45,5 +48,48 @@ def test_analyze_idle_instances_failure(mock_get_idle):
 
     assert result is None
     mock_get_idle.assert_called_once_with(region="us-east-1")
+
+@patch('analyzer.get_untagged_resources')  # Mock the data fetcher function
+def test_analyze_untagged_resources_success(mock_get_untagged):
+    """Tests that analyze_untagged_resources returns data from the fetcher."""
+    mock_untagged_data = {"Instances": [{"ResourceId": "i-123", "MissingTags": ["Owner"]}], "Volumes": []}
+    mock_get_untagged.return_value = mock_untagged_data
+
+    result = analyze_untagged_resources(region="us-east-1")
+
+    assert result == mock_untagged_data
+    mock_get_untagged.assert_called_once_with(required_tags=None, region="us-east-1")  # Check default tags
+
+
+@patch('analyzer.get_untagged_resources')
+def test_analyze_untagged_resources_failure(mock_get_untagged):
+    """Tests that analyze_untagged_resources returns None when fetcher fails."""
+    mock_get_untagged.return_value = None
+
+    result = analyze_untagged_resources(region="us-east-1")
+
+    assert result is None
+    mock_get_untagged.assert_called_once_with(required_tags=None, region="us-east-1")
+
+@patch('analyzer.get_ebs_optimization_candidates') # Mock the data fetcher function
+def test_analyze_ebs_optimization_success(mock_get_ebs):
+    """Tests that analyze_ebs_optimization returns data from the fetcher."""
+    mock_ebs_data = {"UnattachedVolumes": [{"ResourceId": "vol-123"}], "Gp2Volumes": []}
+    mock_get_ebs.return_value = mock_ebs_data
+
+    result = analyze_ebs_optimization(region="us-east-1")
+
+    assert result == mock_ebs_data
+    mock_get_ebs.assert_called_once_with(region="us-east-1")
+
+@patch('analyzer.get_ebs_optimization_candidates')
+def test_analyze_ebs_optimization_failure(mock_get_ebs):
+    """Tests that analyze_ebs_optimization returns None when fetcher fails."""
+    mock_get_ebs.return_value = None
+
+    result = analyze_ebs_optimization(region="us-east-1")
+
+    assert result is None
+    mock_get_ebs.assert_called_once_with(region="us-east-1")
 
 # Add more tests for different scenarios and edge cases

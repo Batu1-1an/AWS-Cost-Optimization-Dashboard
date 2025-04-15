@@ -1,5 +1,8 @@
 import logging
-from data_fetcher import get_cost_by_service, get_idle_ec2_instances, get_untagged_resources
+from data_fetcher import (
+    get_cost_by_service, get_idle_ec2_instances, get_untagged_resources,
+    get_ebs_optimization_candidates # Import new fetcher function
+)
 from aws_connector import AWS_REGION # Import default region for convenience
 
 # Configure logging
@@ -68,6 +71,27 @@ def analyze_untagged_resources(required_tags=None, region=AWS_REGION):
     logging.info(f"Untagged resource analysis complete. Found {len(untagged_resources.get('Instances',[]))} instances, {len(untagged_resources.get('Volumes',[]))} volumes.")
     return untagged_resources
 
+def analyze_ebs_optimization(region=AWS_REGION):
+    """
+    Analyzes EBS volumes to find optimization candidates using data_fetcher.
+    Currently, it just returns the fetched list.
+
+    Args:
+        region (str): The AWS region to analyze volumes in.
+
+    Returns:
+        dict: A dictionary containing lists of 'UnattachedVolumes' and 'Gp2Volumes',
+              or None if fetching fails.
+    """
+    logging.info(f"Starting EBS optimization analysis for region {region}.")
+    ebs_opts = get_ebs_optimization_candidates(region=region)
+    if ebs_opts is None:
+        logging.error("Failed to retrieve EBS optimization data for analysis.")
+        return None
+    # Future: Add more complex analysis (e.g., cost comparison for gp2->gp3)
+    logging.info(f"EBS optimization analysis complete. Found {len(ebs_opts.get('UnattachedVolumes',[]))} unattached, {len(ebs_opts.get('Gp2Volumes',[]))} gp2 volumes.")
+    return ebs_opts
+
 # Example usage (optional, for testing this module directly)
 if __name__ == '__main__':
     logging.info("--- Testing Analyzer ---")
@@ -101,6 +125,18 @@ if __name__ == '__main__':
              print(f"  ID: {vol['ResourceId']}, Missing: {vol['MissingTags']}")
     else:
         print("Could not analyze untagged resource data.")
+
+    print("\nAnalyzing EBS Optimization Candidates...")
+    ebs_opts = analyze_ebs_optimization()
+    if ebs_opts is not None:
+        print(f"Analyzed Unattached Volumes in {AWS_REGION}: {len(ebs_opts.get('UnattachedVolumes',[]))} found.")
+        for vol in ebs_opts.get('UnattachedVolumes', []):
+            print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
+        print(f"Analyzed GP2 Volumes in {AWS_REGION}: {len(ebs_opts.get('Gp2Volumes',[]))} found.")
+        for vol in ebs_opts.get('Gp2Volumes', []):
+             print(f"  ID: {vol['ResourceId']}, Size: {vol['SizeGiB']} GiB")
+    else:
+        print("Could not analyze EBS optimization data.")
 
 
     logging.info("--- Analyzer Test Complete ---")

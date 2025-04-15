@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     fetchCostData();
     fetchIdleInstances();
-    fetchUntaggedResources(); // Add call for untagged resources
+    fetchUntaggedResources();
+    fetchEbsOptimizationData(); // Add call for EBS optimization data
 });
 
 function fetchCostData() {
@@ -122,5 +123,48 @@ function renderUntaggedResourcesTable(data) {
         row.insertCell(2).textContent = resource.Region;
         // Join the list of missing tags into a string
         row.insertCell(3).textContent = resource.MissingTags.join(', ');
+    });
+}
+
+function fetchEbsOptimizationData() {
+    fetch('/api/ebs-optimization')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            renderEbsOptimizationTable(data);
+        })
+        .catch(error => {
+            console.error('Error fetching EBS optimization data:', error);
+            const tableBody = document.getElementById('ebsOptimizationTable').querySelector('tbody');
+            tableBody.innerHTML = '<tr><td colspan="5" style="color: red;">Could not load EBS optimization data.</td></tr>';
+        });
+}
+
+function renderEbsOptimizationTable(data) {
+    const tableBody = document.getElementById('ebsOptimizationTable').querySelector('tbody');
+    tableBody.innerHTML = ''; // Clear previous data
+
+    const unattached = data.UnattachedVolumes || [];
+    const gp2Volumes = data.Gp2Volumes || [];
+
+    if (unattached.length === 0 && gp2Volumes.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5">No EBS optimization candidates found.</td></tr>';
+        return;
+    }
+
+    // Combine both types of candidates for rendering
+    const allCandidates = [...unattached, ...gp2Volumes];
+
+    allCandidates.forEach(volume => {
+        const row = tableBody.insertRow();
+        row.insertCell(0).textContent = volume.ResourceId;
+        row.insertCell(1).textContent = volume.Region;
+        row.insertCell(2).textContent = volume.SizeGiB;
+        row.insertCell(3).textContent = volume.CurrentType || 'N/A'; // Display type if available (gp2)
+        row.insertCell(4).textContent = volume.Reason;
     });
 }

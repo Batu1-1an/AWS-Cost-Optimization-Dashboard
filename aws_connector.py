@@ -14,29 +14,41 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1") # Default to us-east-1 if not set
 
-# Basic validation
-if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
-    logging.error("AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) not found in environment variables.")
-    # In a real app, you might raise an exception or handle this more gracefully
-    # For now, we'll allow it to proceed, but boto3 calls will likely fail.
-    SESSION = None
-else:
-    try:
-        SESSION = boto3.Session(
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region_name=AWS_REGION
-        )
-        logging.info(f"AWS session created successfully for region {AWS_REGION}.")
-    except Exception as e:
-        logging.error(f"Failed to create AWS session: {e}")
-        SESSION = None
-
+# Module-level variable to hold the session once created
+_session = None
 def get_aws_session():
-    """Returns the initialized Boto3 session."""
-    if SESSION is None:
-        logging.warning("Attempting to get AWS session, but it was not initialized successfully.")
-    return SESSION
+    """
+    Returns the Boto3 session, creating it lazily if it doesn't exist.
+    Ensures session creation happens after potential patching (e.g., by moto).
+    """
+    global _session
+    if _session is None:
+        logging.info("Creating new AWS session...")
+        # Fetch credentials again inside the function to ensure they are current
+        aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        aws_region = os.getenv("AWS_REGION", "us-east-1")
+
+        if not aws_access_key_id or not aws_secret_access_key:
+            logging.error("AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) not found in environment variables during session creation.")
+            # Cannot create a session without credentials
+            return None
+        else:
+            try:
+                _session = boto3.Session(
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    region_name=aws_region
+                )
+                logging.info(f"AWS session created successfully for region {aws_region}.")
+            except Exception as e:
+                logging.error(f"Failed to create AWS session: {e}")
+                _session = None # Ensure it remains None on failure
+
+    if _session is None:
+         logging.warning("Attempting to get AWS session, but it could not be initialized successfully.")
+
+    return _session
 
 def get_client(service_name, region_name=None):
     """
@@ -75,5 +87,7 @@ if __name__ == '__main__':
     if cw_client:
         logging.info("CloudWatch client obtained.")
 
-    if not SESSION:
+    # Attempt to get the session to trigger initialization if needed
+    session = get_aws_session()
+    if not session:
         logging.warning("AWS Session could not be initialized. Check .env file and credentials.")
