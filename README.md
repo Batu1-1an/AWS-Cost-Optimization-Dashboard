@@ -135,3 +135,7 @@ This project provides a web-based dashboard to help visualize AWS costs and iden
 *   **More Robust Anomaly Detection:** Implement more sophisticated time-series analysis for anomaly detection.
 *   **User Authentication:** Add user login/authentication if deploying for multiple users.
 *   **Deployment:** Instructions/scripts for deploying to a server or cloud platform.
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
