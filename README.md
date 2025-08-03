@@ -12,6 +12,12 @@ This project provides a web-based dashboard to help visualize AWS costs and iden
 *   **EBS Volume Optimization Candidates:**
     *   Identifies unattached EBS volumes (state: 'available').
     *   Flags volumes using the older `gp2` type as potential candidates for migration to `gp3`.
+*   **S3 Storage Optimization Analysis:** **NEW FEATURE**
+    *   Analyzes S3 buckets for storage class optimization opportunities.
+    *   Identifies buckets using deprecated REDUCED_REDUNDANCY storage class.
+    *   Suggests lifecycle policy implementations for automatic cost optimization.
+    *   Provides prioritized recommendations with potential savings calculations.
+    *   Displays storage class distribution and cost impact analysis.
 *   **Cost Anomaly Detection:** Performs a basic daily cost anomaly check by comparing the latest day's cost against the average and standard deviation of the preceding period (default: 60 days history, 2.5 std dev threshold). Highlights potential unexpected cost spikes.
 *   **Web Interface:** Simple dashboard built with Flask and rendered in your browser.
 
@@ -73,7 +79,11 @@ This project provides a web-based dashboard to help visualize AWS costs and iden
     *   `ce:GetCostAndUsage` (for Cost Explorer data)
     *   `ec2:DescribeInstances` (for EC2 instance details and tags)
     *   `ec2:DescribeVolumes` (for EBS volume details and tags)
-    *   `cloudwatch:GetMetricStatistics` (for EC2 CPU utilization)
+    *   `cloudwatch:GetMetricStatistics` (for EC2 CPU utilization and S3 bucket metrics)
+    *   `s3:ListAllMyBuckets` (for S3 bucket enumeration)
+    *   `s3:GetBucketLocation` (for S3 bucket region information)
+    *   `s3:ListBucket` (for S3 object enumeration and storage class analysis)
+    *   `s3:GetBucketLifecycleConfiguration` (for S3 lifecycle policy analysis)
 
 ## Running the Application
 
@@ -128,7 +138,7 @@ This project provides a web-based dashboard to help visualize AWS costs and iden
 ## Future Enhancements
 
 *   **Reserved Instance / Savings Plan Analysis:** Analyze RI/SP coverage, utilization, and potential savings.
-*   **S3 Analysis:** Implement checks for S3 storage class optimization and lifecycle policies.
+*   **Enhanced S3 Analysis:** Add support for S3 Intelligent Tiering analysis and cross-region replication cost optimization.
 *   **Granular Filtering:** Add UI options to filter cost and resource data by tags, regions, instance types, etc.
 *   **Extended Untagged Resources:** Scan additional resource types (RDS, S3, Load Balancers) for missing tags.
 *   **Configuration File:** Move settings like `REQUIRED_TAGS`, anomaly thresholds, and idle criteria to a configuration file instead of hardcoding.

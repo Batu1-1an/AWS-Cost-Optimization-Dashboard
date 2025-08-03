@@ -71,6 +71,43 @@
         </div>
 
         <div class="card"> <!-- Add card class -->
+            <h2>S3 Storage Optimization</h2>
+            <div class="s3-summary">
+                <div id="s3SummaryInfo">
+                    <p>Loading S3 optimization data...</p>
+                </div>
+            </div>
+            <div class="s3-charts">
+                <div class="s3-chart-item">
+                    <h3>Storage Class Distribution</h3>
+                    <div id="s3StorageClassChart"></div>
+                </div>
+                <div class="s3-chart-item">
+                    <h3>Potential Savings by Optimization Type</h3>
+                    <div id="s3SavingsChart"></div>
+                </div>
+            </div>
+            <div class="card table-container">
+                <h3>Priority Recommendations</h3>
+                <table id="s3RecommendationsTable">
+                    <thead>
+                        <tr>
+                            <th>Priority</th>
+                            <th>Bucket Name</th>
+                            <th>Size (GB)</th>
+                            <th>Optimization Type</th>
+                            <th>Potential Savings</th>
+                            <th>Recommended Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Table rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card"> <!-- Add card class -->
             <h2>Cost Anomaly Detection</h2>
             <div id="costAnomalyInfo">
                 <!-- Anomaly info will be populated by JavaScript -->

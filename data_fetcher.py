@@ -24,6 +24,13 @@ CW_PERIOD_SECONDS = 86400 # 24 * 60 * 60
 # --- Constants for Untagged Resource Detection ---
 # Define the tags that are considered mandatory
 REQUIRED_TAGS = ['Project', 'Owner'] # Example tags, adjust as needed
+
+# --- Constants for S3 Analysis ---
+# Storage classes that can be optimized
+OPTIMIZABLE_STORAGE_CLASSES = ['STANDARD', 'REDUCED_REDUNDANCY']
+# Target storage classes for optimization
+RECOMMENDED_STORAGE_CLASSES = ['STANDARD_IA', 'GLACIER', 'DEEP_ARCHIVE']
+
 def get_cost_by_service(days=30):
     """
     Fetches cost data grouped by service from AWS Cost Explorer.
@@ -376,6 +383,242 @@ def get_ebs_optimization_candidates(region=None):
 
     logging.info(f"Found {len(optimization_candidates['UnattachedVolumes'])} unattached volumes and {len(optimization_candidates['Gp2Volumes'])} gp2 volumes.")
     return optimization_candidates
+
+def get_s3_bucket_analysis(region=None):
+    """
+    Fetches S3 bucket information and analyzes storage optimization opportunities.
+    
+    Args:
+        region (str): AWS region to analyze. If None, uses default region.
+        
+    Returns:
+        dict: Dictionary containing bucket analysis data or None if error occurs.
+    """
+    s3_client = get_client('s3', region)
+    if not s3_client:
+        logging.error("S3 client is not available.")
+        return None
+        
+    try:
+        # Get list of all buckets
+        response = s3_client.list_buckets()
+        buckets = response.get('Buckets', [])
+        
+        bucket_analysis = []
+        total_size = 0
+        total_objects = 0
+        optimization_opportunities = []
+        
+        for bucket in buckets:
+            bucket_name = bucket['Name']
+            logging.info(f"Analyzing bucket: {bucket_name}")
+            
+            try:
+                # Get bucket location
+                bucket_location = s3_client.get_bucket_location(Bucket=bucket_name)
+                bucket_region = bucket_location.get('LocationConstraint') or 'us-east-1'
+                
+                # Get bucket size and object count
+                bucket_info = _get_bucket_size_and_count(s3_client, bucket_name)
+                
+                # Get storage class distribution
+                storage_class_dist = _get_bucket_storage_classes(s3_client, bucket_name)
+                
+                # Check for lifecycle policies
+                has_lifecycle = _check_bucket_lifecycle(s3_client, bucket_name)
+                
+                # Analyze optimization opportunities
+                bucket_optimization = _analyze_bucket_optimization(
+                    bucket_name, bucket_info, storage_class_dist, has_lifecycle
+                )
+                
+                bucket_data = {
+                    'name': bucket_name,
+                    'region': bucket_region,
+                    'size_gb': bucket_info['size_gb'],
+                    'object_count': bucket_info['object_count'],
+                    'storage_classes': storage_class_dist,
+                    'has_lifecycle_policy': has_lifecycle,
+                    'optimization': bucket_optimization
+                }
+                
+                bucket_analysis.append(bucket_data)
+                total_size += bucket_info['size_gb']
+                total_objects += bucket_info['object_count']
+                
+                if bucket_optimization['opportunities']:
+                    optimization_opportunities.extend(bucket_optimization['opportunities'])
+                    
+            except Exception as e:
+                logging.warning(f"Could not analyze bucket {bucket_name}: {str(e)}")
+                continue
+                
+        return {
+            'buckets': bucket_analysis,
+            'summary': {
+                'total_buckets': len(buckets),
+                'total_size_gb': total_size,
+                'total_objects': total_objects,
+                'buckets_analyzed': len(bucket_analysis),
+                'optimization_opportunities_count': len(optimization_opportunities)
+            },
+            'optimization_opportunities': optimization_opportunities
+        }
+        
+    except Exception as e:
+        logging.error(f"Error fetching S3 bucket analysis: {str(e)}")
+        return None
+
+def _get_bucket_size_and_count(s3_client, bucket_name):
+    """
+    Helper function to get bucket size and object count using CloudWatch metrics.
+    Falls back to listing objects if metrics are not available.
+    """
+    cw_client = get_client('cloudwatch')
+    
+    try:
+        if cw_client:
+            # Try to get size from CloudWatch metrics
+            end_time = datetime.now()
+            start_time = end_time - timedelta(days=2)
+            
+            # Get bucket size in bytes
+            size_response = cw_client.get_metric_statistics(
+                Namespace='AWS/S3',
+                MetricName='BucketSizeBytes',
+                Dimensions=[
+                    {'Name': 'BucketName', 'Value': bucket_name},
+                    {'Name': 'StorageType', 'Value': 'StandardStorage'}
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+                Period=86400,  # Daily
+                Statistics=['Average']
+            )
+            
+            # Get object count
+            count_response = cw_client.get_metric_statistics(
+                Namespace='AWS/S3',
+                MetricName='NumberOfObjects',
+                Dimensions=[
+                    {'Name': 'BucketName', 'Value': bucket_name},
+                    {'Name': 'StorageType', 'Value': 'AllStorageTypes'}
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+                Period=86400,  # Daily
+                Statistics=['Average']
+            )
+            
+            size_datapoints = size_response.get('Datapoints', [])
+            count_datapoints = count_response.get('Datapoints', [])
+            
+            if size_datapoints and count_datapoints:
+                latest_size = max(size_datapoints, key=lambda x: x['Timestamp'])
+                latest_count = max(count_datapoints, key=lambda x: x['Timestamp'])
+                
+                return {
+                    'size_gb': latest_size['Average'] / (1024**3),  # Convert to GB
+                    'object_count': int(latest_count['Average'])
+                }
+    except Exception as e:
+        logging.warning(f"Could not get CloudWatch metrics for {bucket_name}: {str(e)}")
+    
+    # Fallback: estimate by listing objects (limited to first 1000 for performance)
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+        objects = response.get('Contents', [])
+        
+        total_size = sum(obj.get('Size', 0) for obj in objects)
+        object_count = response.get('KeyCount', 0)
+        
+        # If there are more objects, this is an underestimate
+        if response.get('IsTruncated', False):
+            object_count = f"{object_count}+"
+            
+        return {
+            'size_gb': total_size / (1024**3),
+            'object_count': object_count
+        }
+    except Exception as e:
+        logging.warning(f"Could not list objects for {bucket_name}: {str(e)}")
+        return {'size_gb': 0, 'object_count': 0}
+
+def _get_bucket_storage_classes(s3_client, bucket_name):
+    """
+    Helper function to get storage class distribution for a bucket.
+    """
+    try:
+        storage_classes = {}
+        
+        # List a sample of objects to analyze storage classes
+        response = s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+        objects = response.get('Contents', [])
+        
+        for obj in objects:
+            storage_class = obj.get('StorageClass', 'STANDARD')
+            storage_classes[storage_class] = storage_classes.get(storage_class, 0) + 1
+            
+        return storage_classes
+    except Exception as e:
+        logging.warning(f"Could not get storage classes for {bucket_name}: {str(e)}")
+        return {}
+
+def _check_bucket_lifecycle(s3_client, bucket_name):
+    """
+    Helper function to check if a bucket has lifecycle policies configured.
+    """
+    try:
+        s3_client.get_bucket_lifecycle_configuration(Bucket=bucket_name)
+        return True
+    except s3_client.exceptions.NoSuchLifecycleConfiguration:
+        return False
+    except Exception as e:
+        logging.warning(f"Could not check lifecycle policy for {bucket_name}: {str(e)}")
+        return False
+
+def _analyze_bucket_optimization(bucket_name, bucket_info, storage_classes, has_lifecycle):
+    """
+    Helper function to analyze optimization opportunities for a bucket.
+    """
+    opportunities = []
+    potential_savings = 0
+    
+    # Check for objects in STANDARD storage that could be moved to IA
+    standard_objects = storage_classes.get('STANDARD', 0)
+    if standard_objects > 0 and bucket_info['size_gb'] > 0.1:  # Only suggest for buckets > 100MB
+        opportunities.append({
+            'type': 'storage_class_optimization',
+            'description': f'Consider moving {standard_objects} STANDARD objects to STANDARD_IA for long-term storage',
+            'potential_savings_percent': 45,  # STANDARD_IA is ~45% cheaper than STANDARD
+            'recommended_action': 'Implement lifecycle policy to transition to STANDARD_IA after 30 days'
+        })
+        potential_savings += bucket_info['size_gb'] * 0.023 * 0.45  # Rough calculation
+    
+    # Check for REDUCED_REDUNDANCY storage (deprecated)
+    rr_objects = storage_classes.get('REDUCED_REDUNDANCY', 0)
+    if rr_objects > 0:
+        opportunities.append({
+            'type': 'deprecated_storage_class',
+            'description': f'{rr_objects} objects using deprecated REDUCED_REDUNDANCY storage',
+            'potential_savings_percent': 20,
+            'recommended_action': 'Migrate to STANDARD or STANDARD_IA storage class'
+        })
+    
+    # Check for missing lifecycle policies
+    if not has_lifecycle and bucket_info['size_gb'] > 1:  # Suggest for buckets > 1GB
+        opportunities.append({
+            'type': 'missing_lifecycle_policy',
+            'description': 'No lifecycle policy configured for automatic storage class transitions',
+            'potential_savings_percent': 30,
+            'recommended_action': 'Configure lifecycle policy for automatic cost optimization'
+        })
+        potential_savings += bucket_info['size_gb'] * 0.023 * 0.30
+    
+    return {
+        'opportunities': opportunities,
+        'potential_monthly_savings_usd': round(potential_savings, 2)
+    }
 
 # Example usage (optional, for testing this module directly)
 if __name__ == '__main__':
