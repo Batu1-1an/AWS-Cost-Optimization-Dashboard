@@ -1,7 +1,7 @@
 import logging
 from data_fetcher import (
     get_cost_by_service, get_idle_ec2_instances, get_untagged_resources,
-    get_ebs_optimization_candidates, get_daily_cost_history # Import new fetcher functions
+    get_ebs_optimization_candidates, get_daily_cost_history, get_s3_bucket_analysis # Import new fetcher functions
 )
 import numpy as np # For standard deviation calculation
 from aws_connector import AWS_REGION # Import default region for convenience
@@ -156,6 +156,152 @@ def analyze_cost_anomalies(history_days=60, std_dev_threshold=2.5):
         logging.info("No cost anomaly detected.")
 
     return result
+
+def analyze_s3_optimization(region=None):
+    """
+    Analyzes S3 buckets for cost optimization opportunities.
+    
+    Args:
+        region (str): AWS region to analyze. If None, uses default region.
+    
+    Returns:
+        dict: Dictionary containing S3 analysis results or None if analysis fails.
+    """
+    logging.info("Starting S3 optimization analysis.")
+    
+    # Fetch S3 bucket data
+    s3_data = get_s3_bucket_analysis(region)
+    if s3_data is None:
+        logging.error("Failed to retrieve S3 bucket data for analysis.")
+        return None
+    
+    try:
+        # Analyze the data further
+        analysis_result = {
+            'summary': s3_data['summary'],
+            'buckets': s3_data['buckets'],
+            'optimization_opportunities': s3_data['optimization_opportunities'],
+            'priority_recommendations': _prioritize_s3_recommendations(s3_data),
+            'cost_analysis': _calculate_s3_cost_impact(s3_data)
+        }
+        
+        logging.info(f"S3 analysis complete. Found {len(s3_data['optimization_opportunities'])} optimization opportunities across {s3_data['summary']['buckets_analyzed']} buckets.")
+        return analysis_result
+        
+    except Exception as e:
+        logging.error(f"Error during S3 analysis: {str(e)}")
+        return None
+
+def _prioritize_s3_recommendations(s3_data):
+    """
+    Helper function to prioritize S3 optimization recommendations by potential impact.
+    """
+    recommendations = []
+    
+    for bucket in s3_data['buckets']:
+        bucket_name = bucket['name']
+        bucket_size = bucket['size_gb']
+        opportunities = bucket['optimization']['opportunities']
+        
+        for opportunity in opportunities:
+            priority_score = _calculate_priority_score(bucket_size, opportunity)
+            
+            recommendation = {
+                'bucket_name': bucket_name,
+                'bucket_size_gb': bucket_size,
+                'type': opportunity['type'],
+                'description': opportunity['description'],
+                'recommended_action': opportunity['recommended_action'],
+                'potential_savings_percent': opportunity['potential_savings_percent'],
+                'priority_score': priority_score,
+                'priority_level': _get_priority_level(priority_score)
+            }
+            recommendations.append(recommendation)
+    
+    # Sort by priority score (highest first)
+    recommendations.sort(key=lambda x: x['priority_score'], reverse=True)
+    
+    return recommendations
+
+def _calculate_priority_score(bucket_size_gb, opportunity):
+    """
+    Calculate a priority score for an S3 optimization opportunity.
+    Higher score = higher priority.
+    """
+    base_score = 0
+    
+    # Size factor (larger buckets get higher priority)
+    if bucket_size_gb > 100:  # > 100GB
+        base_score += 50
+    elif bucket_size_gb > 10:  # > 10GB
+        base_score += 30
+    elif bucket_size_gb > 1:  # > 1GB
+        base_score += 15
+    else:
+        base_score += 5
+    
+    # Savings potential factor
+    savings_percent = opportunity.get('potential_savings_percent', 0)
+    base_score += savings_percent
+    
+    # Opportunity type factor
+    type_weights = {
+        'deprecated_storage_class': 40,  # High priority - deprecated features
+        'storage_class_optimization': 25,  # Medium-high priority
+        'missing_lifecycle_policy': 20   # Medium priority
+    }
+    
+    opportunity_type = opportunity.get('type', '')
+    base_score += type_weights.get(opportunity_type, 10)
+    
+    return min(base_score, 100)  # Cap at 100
+
+def _get_priority_level(priority_score):
+    """
+    Convert priority score to human-readable priority level.
+    """
+    if priority_score >= 80:
+        return 'Critical'
+    elif priority_score >= 60:
+        return 'High'
+    elif priority_score >= 40:
+        return 'Medium'
+    else:
+        return 'Low'
+
+def _calculate_s3_cost_impact(s3_data):
+    """
+    Calculate the potential cost impact of S3 optimizations.
+    """
+    total_potential_savings = 0
+    savings_by_type = {}
+    
+    for bucket in s3_data['buckets']:
+        bucket_savings = bucket['optimization']['potential_monthly_savings_usd']
+        total_potential_savings += bucket_savings
+        
+        for opportunity in bucket['optimization']['opportunities']:
+            opp_type = opportunity['type']
+            if opp_type not in savings_by_type:
+                savings_by_type[opp_type] = {
+                    'count': 0,
+                    'potential_savings': 0
+                }
+            savings_by_type[opp_type]['count'] += 1
+            # Rough estimate based on bucket size and savings percentage
+            estimated_savings = bucket['size_gb'] * 0.023 * (opportunity['potential_savings_percent'] / 100)
+            savings_by_type[opp_type]['potential_savings'] += estimated_savings
+    
+    return {
+        'total_monthly_savings_usd': round(total_potential_savings, 2),
+        'annual_savings_usd': round(total_potential_savings * 12, 2),
+        'savings_breakdown': savings_by_type,
+        'roi_analysis': {
+            'implementation_effort': 'Low to Medium',
+            'time_to_savings': 'Immediate (within 24 hours)',
+            'risk_level': 'Very Low'
+        }
+    }
 
 # Example usage (optional, for testing this module directly)
 if __name__ == '__main__':

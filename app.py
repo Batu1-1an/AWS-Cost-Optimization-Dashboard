@@ -3,7 +3,7 @@ from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
 from analyzer import (
     analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
-    analyze_ebs_optimization, analyze_cost_anomalies # Import new analyzer functions
+    analyze_ebs_optimization, analyze_cost_anomalies, analyze_s3_optimization # Import new analyzer functions
 )
 # Load environment variables from .env file
 load_dotenv()
@@ -60,6 +60,15 @@ def get_cost_anomalies_api():
     if anomaly_data is None:
         return jsonify({"error": "Failed to retrieve cost anomaly data"}), 500
     return jsonify(anomaly_data)
+
+@app.route('/api/s3-optimization')
+def get_s3_optimization_api():
+    """API endpoint to provide S3 storage optimization analysis."""
+    # Note: Add ability to pass region from request if needed later
+    s3_data = analyze_s3_optimization()
+    if s3_data is None:
+        return jsonify({"error": "Failed to retrieve S3 optimization data"}), 500
+    return jsonify(s3_data)
 
 if __name__ == '__main__':
     # Use debug=True for development, but disable in production
