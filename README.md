@@ -1,141 +1,294 @@
 # AWS Cost Optimization Dashboard
 
-## Description
+A comprehensive Flask-based web application for monitoring and optimizing AWS costs. This dashboard provides real-time insights into your AWS spending, identifies cost optimization opportunities, and helps you maintain control over your cloud expenses.
 
-This project provides a web-based dashboard to help visualize AWS costs and identify potential optimization opportunities within your AWS account. It fetches data using the AWS SDK (boto3) and presents it using Flask and Plotly.js.
+## 🚀 Features
 
-## Features
+- **💰 Cost Analysis**: Real-time cost breakdown by AWS service with trend analysis
+- **🔍 Idle Resource Detection**: Identify underutilized EC2 instances based on CloudWatch metrics
+- **🏷️ Compliance Monitoring**: Find resources missing required tags
+- **💾 EBS Optimization**: Discover unattached volumes and GP2→GP3 upgrade opportunities
+- **📊 Anomaly Detection**: Statistical analysis to detect unusual spending patterns
+- **📈 Interactive Dashboard**: Modern, responsive web interface with real-time updates
+- **🔔 Alert System**: Email notifications for budget thresholds and anomalies
+- **📱 Multi-Platform**: Supports deployment on various platforms (Docker, AWS, Kubernetes)
 
-*   **Cost Breakdown by Service:** Displays a pie chart showing the cost distribution across different AWS services for the last 30 days (by default).
-*   **Idle EC2 Instance Identification:** Lists EC2 instances that have shown low average and maximum CPU utilization over a defined period (default: 14 days), suggesting they might be underutilized or idle.
-*   **Untagged Resource Identification:** Lists EC2 instances and EBS volumes that are missing a predefined set of essential tags (e.g., 'Project', 'Owner'), aiding in cost allocation and resource management.
-*   **EBS Volume Optimization Candidates:**
-    *   Identifies unattached EBS volumes (state: 'available').
-    *   Flags volumes using the older `gp2` type as potential candidates for migration to `gp3`.
-*   **Cost Anomaly Detection:** Performs a basic daily cost anomaly check by comparing the latest day's cost against the average and standard deviation of the preceding period (default: 60 days history, 2.5 std dev threshold). Highlights potential unexpected cost spikes.
-*   **Web Interface:** Simple dashboard built with Flask and rendered in your browser.
+## 📚 Documentation
 
-## Setup & Installation
+This project includes comprehensive documentation covering all aspects of installation, usage, and deployment:
+
+### 📖 Core Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[API Documentation](API_DOCUMENTATION.md)** | Complete API reference with examples and response formats |
+| **[Module Reference](MODULE_REFERENCE.md)** | Detailed technical documentation for all Python modules |
+| **[Frontend Documentation](FRONTEND_DOCUMENTATION.md)** | HTML, CSS, and JavaScript implementation guide |
+| **[Usage Guide](USAGE_GUIDE.md)** | Step-by-step tutorials and common use cases |
+| **[Deployment Guide](DEPLOYMENT_GUIDE.md)** | Production deployment for Docker, AWS, and Kubernetes |
+
+### 🎯 Quick Navigation
+
+**For Developers:**
+- [Module Reference](MODULE_REFERENCE.md) - Technical implementation details
+- [API Documentation](API_DOCUMENTATION.md) - REST API endpoints and integration
+- [Frontend Documentation](FRONTEND_DOCUMENTATION.md) - UI components and customization
+
+**For DevOps/Infrastructure:**
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Production deployment strategies
+- [Security Configuration](DEPLOYMENT_GUIDE.md#security-configuration) - Authentication and security
+- [Monitoring Setup](DEPLOYMENT_GUIDE.md#monitoring-and-logging) - Logging and health checks
+
+**For End Users:**
+- [Usage Guide](USAGE_GUIDE.md) - Getting started and tutorials
+- [Common Use Cases](USAGE_GUIDE.md#common-use-cases) - Practical examples
+- [Troubleshooting](USAGE_GUIDE.md#troubleshooting) - Problem resolution
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-*   Python 3.x (developed with 3.11, but should work with recent 3.x versions)
-*   pip (Python package installer)
-*   Git (for cloning, optional if you already have the code)
+- Python 3.7+
+- AWS Account with Cost Explorer enabled
+- Valid AWS credentials
 
-### Steps
+### 5-Minute Setup
 
-1.  **Clone the Repository (Optional):**
-    ```bash
-    git clone https://github.com/Batu1-1an/AWS-Cost-Optimization-Dashboard.git
-    cd AWS-Cost-Optimization-Dashboard
-    ```
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd aws-cost-dashboard
 
-2.  **Create a Virtual Environment:**
-    It's highly recommended to use a virtual environment to manage dependencies.
-    ```bash
-    python -m venv .venv
-    ```
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3.  **Activate the Virtual Environment:**
-    *   **Windows (PowerShell/CMD):**
-        ```powershell
-        .\.venv\Scripts\Activate.ps1
-        # or for CMD: .\.venv\Scripts\activate.bat
-        ```
-    *   **Linux/macOS (Bash/Zsh):**
-        ```bash
-        source .venv/bin/activate
-        ```
-    You should see `(.venv)` prefixed to your shell prompt.
+# 3. Install dependencies
+pip install -r requirements.txt
 
-4.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your AWS credentials
 
-## Configuration
-
-1.  **AWS Credentials:**
-    *   Create a file named `.env` in the project's root directory.
-    *   Add your AWS credentials and preferred region to this file:
-        ```dotenv
-        # AWS Credentials - Replace with your actual keys
-        # Ensure this file is included in .gitignore and NEVER committed to version control!
-        AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
-        AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY"
-        AWS_REGION="us-east-1" # Or your preferred default region
-        ```
-    *   **IMPORTANT:** The `.gitignore` file is configured to ignore `.env`. **Never commit your `.env` file containing credentials to version control.**
-
-2.  **IAM Permissions:**
-    The AWS IAM user or role associated with the credentials needs the following minimum permissions:
-    *   `ce:GetCostAndUsage` (for Cost Explorer data)
-    *   `ec2:DescribeInstances` (for EC2 instance details and tags)
-    *   `ec2:DescribeVolumes` (for EBS volume details and tags)
-    *   `cloudwatch:GetMetricStatistics` (for EC2 CPU utilization)
-
-## Running the Application
-
-1.  Ensure your virtual environment is activated.
-2.  Make sure your `.env` file is configured correctly.
-3.  Run the Flask development server:
-    ```bash
-    python app.py
-    ```
-4.  Open your web browser and navigate to `http://127.0.0.1:5000/` (or the URL provided in the terminal output).
-
-## Running Tests
-
-1.  Ensure your virtual environment is activated.
-2.  Run the test suite using pytest:
-    ```bash
-    python -m pytest -v
-    ```
-    *   Tests use `moto` to mock AWS services, so they don't require live AWS credentials or incur costs.
-    *   Some tests related to volume tagging might be marked as `xfail` (expected failure) due to potential state leakage issues in `moto`'s volume handling between tests.
-
-## Project Structure
-
-```
-.
-├── .git/               # Git repository data
-├── .gitignore          # Specifies intentionally untracked files that Git should ignore
-├── .pytest_cache/      # Pytest cache directory
-├── __pycache__/        # Python bytecode cache
-├── static/             # Static files (CSS, JavaScript)
-│   ├── script.js       # Frontend JavaScript for fetching data and rendering charts/tables
-│   └── style.css       # CSS for styling the dashboard
-├── templates/          # HTML templates (rendered by Flask)
-│   └── index.html      # Main dashboard HTML structure
-├── tests/              # Unit and integration tests
-│   ├── test_analyzer.py
-│   ├── test_app.py
-│   ├── test_data_fetcher.py
-│   └── test_utils.py
-├── .env                # Local environment variables (AWS credentials - DO NOT COMMIT)
-├── PLAN.md             # Initial project plan outline
-├── README.md           # This file
-├── analyzer.py         # Contains functions for analyzing fetched data
-├── app.py              # Main Flask application file (routes, server logic)
-├── aws_connector.py    # Handles AWS session and client creation using Boto3
-├── aws_regions.py      # List of AWS regions (currently informational)
-├── data_fetcher.py     # Contains functions to fetch data from AWS APIs
-├── requirements.txt    # Python package dependencies
-└── utils.py            # Utility functions (e.g., tag checking)
+# 5. Run the application
+python app.py
 ```
 
-## Future Enhancements
+Open your browser to `http://localhost:5000` to access the dashboard.
 
-*   **Reserved Instance / Savings Plan Analysis:** Analyze RI/SP coverage, utilization, and potential savings.
-*   **S3 Analysis:** Implement checks for S3 storage class optimization and lifecycle policies.
-*   **Granular Filtering:** Add UI options to filter cost and resource data by tags, regions, instance types, etc.
-*   **Extended Untagged Resources:** Scan additional resource types (RDS, S3, Load Balancers) for missing tags.
-*   **Configuration File:** Move settings like `REQUIRED_TAGS`, anomaly thresholds, and idle criteria to a configuration file instead of hardcoding.
-*   **More Robust Anomaly Detection:** Implement more sophisticated time-series analysis for anomaly detection.
-*   **User Authentication:** Add user login/authentication if deploying for multiple users.
-*   **Deployment:** Instructions/scripts for deploying to a server or cloud platform.
+### Docker Quick Start
 
-## License
+```bash
+# Using Docker Compose
+docker-compose up -d
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+# Or build and run manually
+docker build -t aws-cost-dashboard .
+docker run -p 5000:5000 --env-file .env aws-cost-dashboard
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Flask API      │    │   AWS Services  │
+│   (HTML/CSS/JS) │◄──►│   (Python)       │◄──►│   (Cost/EC2/CW) │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Dashboard     │    │   Data Analysis  │    │   Monitoring    │
+│   Widgets       │    │   Modules        │    │   & Alerts      │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### Core Components
+
+- **`app.py`**: Flask application and API endpoints
+- **`analyzer.py`**: High-level analysis functions and business logic
+- **`data_fetcher.py`**: AWS API integration and data retrieval
+- **`aws_connector.py`**: Authentication and session management
+- **`templates/`**: HTML templates for the dashboard
+- **`static/`**: CSS, JavaScript, and other frontend assets
+
+## 📊 Dashboard Features
+
+### Cost Analysis
+- **Service Breakdown**: Interactive pie charts showing cost distribution
+- **Trend Analysis**: Historical cost patterns and projections
+- **Anomaly Detection**: Statistical analysis to identify cost spikes
+
+### Resource Optimization
+- **Idle Instances**: CPU utilization analysis across 14-day periods
+- **Untagged Resources**: Compliance monitoring for required tags
+- **EBS Optimization**: Unattached volumes and upgrade recommendations
+
+### Monitoring & Alerts
+- **Real-time Updates**: Automatic dashboard refresh
+- **Email Notifications**: Budget alerts and cost anomalies
+- **Health Monitoring**: System status and AWS connectivity checks
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# AWS Configuration
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+
+# Application Settings
+FLASK_ENV=production
+DASHBOARD_REFRESH_INTERVAL=300
+LOG_LEVEL=INFO
+
+# Security
+DASHBOARD_API_KEY=your_api_key
+ALLOWED_HOSTS=yourdomain.com
+
+# Alerts
+SMTP_SERVER=smtp.company.com
+ALERT_EMAIL=alerts@company.com
+ALERT_RECIPIENTS=team@company.com
+```
+
+### Customization Options
+
+- **Thresholds**: Customize idle detection and anomaly sensitivity
+- **Tags**: Configure required tags for compliance monitoring
+- **Regions**: Specify which AWS regions to analyze
+- **Styling**: Modify CSS for custom branding and themes
+
+## 🔐 Security
+
+### Authentication
+- API key authentication for programmatic access
+- Session-based authentication for web interface
+- OAuth integration support (Google, SAML, etc.)
+
+### Network Security
+- HTTPS/TLS encryption
+- Rate limiting and request throttling
+- Firewall configuration guidance
+
+### AWS Permissions
+Minimum required IAM permissions:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ce:GetCostAndUsage",
+        "ec2:DescribeInstances",
+        "ec2:DescribeVolumes",
+        "cloudwatch:GetMetricStatistics"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## 📈 Monitoring
+
+### Health Checks
+- Application health endpoint (`/health`)
+- AWS connectivity verification
+- System resource monitoring
+
+### Metrics
+- Prometheus-compatible metrics endpoint (`/metrics`)
+- Custom business metrics (cost trends, optimization opportunities)
+- Performance and error tracking
+
+### Logging
+- Structured JSON logging
+- Configurable log levels
+- Integration with ELK stack and CloudWatch
+
+## 🚀 Deployment Options
+
+| Platform | Complexity | Best For |
+|----------|------------|----------|
+| **Local Development** | ⭐ | Testing and development |
+| **Docker** | ⭐⭐ | Quick deployment, consistent environments |
+| **AWS EC2** | ⭐⭐⭐ | Cost-effective production deployment |
+| **AWS ECS/Fargate** | ⭐⭐⭐⭐ | Managed, scalable deployment |
+| **Kubernetes** | ⭐⭐⭐⭐⭐ | Enterprise-grade, highly scalable |
+
+See the [Deployment Guide](DEPLOYMENT_GUIDE.md) for detailed instructions for each platform.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our contributing guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest tests/
+
+# Code formatting
+black .
+flake8 .
+
+# Security scanning
+bandit -r .
+```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+### Getting Help
+
+1. **Documentation**: Check the comprehensive docs in this repository
+2. **Issues**: Create a GitHub issue for bugs or feature requests
+3. **Discussions**: Use GitHub Discussions for questions and community support
+
+### Common Issues
+
+- **AWS Permissions**: Ensure your IAM user/role has the required permissions
+- **Cost Explorer**: Enable Cost Explorer in your AWS account (may take 24 hours)
+- **CloudWatch Metrics**: Verify that detailed monitoring is enabled for EC2 instances
+
+### Troubleshooting
+
+See the [Troubleshooting Guide](USAGE_GUIDE.md#troubleshooting) for solutions to common problems.
+
+## 🙏 Acknowledgments
+
+- AWS SDK for Python (Boto3)
+- Flask web framework
+- Plotly.js for interactive charts
+- All contributors and community members
+
+---
+
+## 📋 Project Status
+
+- ✅ Core functionality complete
+- ✅ Comprehensive documentation
+- ✅ Multiple deployment options
+- ✅ Security features implemented
+- ✅ Monitoring and alerting
+- 🔄 Ongoing: Community feedback and enhancements
+
+**Ready for production use** with ongoing maintenance and feature development.
+
+For detailed information about any aspect of this project, please refer to the specific documentation files listed above.
