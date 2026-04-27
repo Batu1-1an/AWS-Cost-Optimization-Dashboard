@@ -1,5 +1,5 @@
 import pytest
-from utils import _check_missing_tags # Assuming utils.py is in the root
+from src.utils import _check_missing_tags # Assuming src.utils.py is in the root
 
 # Test cases for _check_missing_tags
 # Parameters: (resource_tags_list, required_tags_set, expected_missing_list)

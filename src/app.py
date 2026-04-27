@@ -1,9 +1,9 @@
 import os
 from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
-from analyzer import (
+from .analyzer import (
     analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
-    analyze_ebs_optimization, analyze_cost_anomalies, analyze_s3_optimization # Import new analyzer functions
+    analyze_ebs_optimization, analyze_cost_anomalies, analyze_s3_optimization
 )
 # Load environment variables from .env file
 load_dotenv()

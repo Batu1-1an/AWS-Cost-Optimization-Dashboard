@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import patch
-from analyzer import (
+from src.analyzer import (
     analyze_cost_data, analyze_idle_instances, analyze_untagged_resources,
     analyze_ebs_optimization, analyze_cost_anomalies # Import new functions
 )
 
 # Basic test structure - more tests to be added
 
-@patch('analyzer.get_cost_by_service') # Mock the data fetcher function
+@patch('src.analyzer.get_cost_by_service') # Mock the data fetcher function
 def test_analyze_cost_data_success(mock_get_cost):
     """Tests that analyze_cost_data returns data from the fetcher."""
     mock_cost_data = {"EC2": 100.0, "S3": 50.0}
@@ -18,7 +18,7 @@ def test_analyze_cost_data_success(mock_get_cost):
     assert result == mock_cost_data
     mock_get_cost.assert_called_once_with(days=30)
 
-@patch('analyzer.get_cost_by_service')
+@patch('src.analyzer.get_cost_by_service')
 def test_analyze_cost_data_failure(mock_get_cost):
     """Tests that analyze_cost_data returns None when fetcher fails."""
     mock_get_cost.return_value = None
@@ -28,7 +28,7 @@ def test_analyze_cost_data_failure(mock_get_cost):
     assert result is None
     mock_get_cost.assert_called_once_with(days=30)
 
-@patch('analyzer.get_idle_ec2_instances') # Mock the data fetcher function
+@patch('src.analyzer.get_idle_ec2_instances') # Mock the data fetcher function
 def test_analyze_idle_instances_success(mock_get_idle):
     """Tests that analyze_idle_instances returns data from the fetcher."""
     mock_idle_data = [{"InstanceId": "i-123", "Region": "us-east-1", "AvgCPU": 1.0, "Reason": "Test"}]
@@ -39,7 +39,7 @@ def test_analyze_idle_instances_success(mock_get_idle):
     assert result == mock_idle_data
     mock_get_idle.assert_called_once_with(region="us-east-1")
 
-@patch('analyzer.get_idle_ec2_instances')
+@patch('src.analyzer.get_idle_ec2_instances')
 def test_analyze_idle_instances_failure(mock_get_idle):
     """Tests that analyze_idle_instances returns None when fetcher fails."""
     mock_get_idle.return_value = None
@@ -49,7 +49,7 @@ def test_analyze_idle_instances_failure(mock_get_idle):
     assert result is None
     mock_get_idle.assert_called_once_with(region="us-east-1")
 
-@patch('analyzer.get_untagged_resources')  # Mock the data fetcher function
+@patch('src.analyzer.get_untagged_resources')  # Mock the data fetcher function
 def test_analyze_untagged_resources_success(mock_get_untagged):
     """Tests that analyze_untagged_resources returns data from the fetcher."""
     mock_untagged_data = {"Instances": [{"ResourceId": "i-123", "MissingTags": ["Owner"]}], "Volumes": []}
@@ -60,7 +60,7 @@ def test_analyze_untagged_resources_success(mock_get_untagged):
     assert result == mock_untagged_data
     mock_get_untagged.assert_called_once_with(required_tags=None, region="us-east-1")  # Check default tags
 
-@patch('analyzer.get_untagged_resources')
+@patch('src.analyzer.get_untagged_resources')
 def test_analyze_untagged_resources_failure(mock_get_untagged):
     """Tests that analyze_untagged_resources returns None when fetcher fails."""
     mock_get_untagged.return_value = None
@@ -70,7 +70,7 @@ def test_analyze_untagged_resources_failure(mock_get_untagged):
     assert result is None
     mock_get_untagged.assert_called_once_with(required_tags=None, region="us-east-1")
 
-@patch('analyzer.get_ebs_optimization_candidates') # Mock the data fetcher function
+@patch('src.analyzer.get_ebs_optimization_candidates') # Mock the data fetcher function
 def test_analyze_ebs_optimization_success(mock_get_ebs):
     """Tests that analyze_ebs_optimization returns data from the fetcher."""
     mock_ebs_data = {"UnattachedVolumes": [{"ResourceId": "vol-123"}], "Gp2Volumes": []}
@@ -81,7 +81,7 @@ def test_analyze_ebs_optimization_success(mock_get_ebs):
     assert result == mock_ebs_data
     mock_get_ebs.assert_called_once_with(region="us-east-1")
 
-@patch('analyzer.get_ebs_optimization_candidates')
+@patch('src.analyzer.get_ebs_optimization_candidates')
 def test_analyze_ebs_optimization_failure(mock_get_ebs):
     """Tests that analyze_ebs_optimization returns None when fetcher fails."""
     mock_get_ebs.return_value = None
@@ -93,7 +93,7 @@ def test_analyze_ebs_optimization_failure(mock_get_ebs):
 
 # --- Test analyze_cost_anomalies ---
 
-@patch('analyzer.get_daily_cost_history')
+@patch('src.analyzer.get_daily_cost_history')
 def test_analyze_cost_anomalies_detected(mock_get_history):
     """Tests when a cost anomaly is detected."""
     # Mock data: last day's cost is > avg + 2.5 * std_dev
@@ -116,7 +116,7 @@ def test_analyze_cost_anomalies_detected(mock_get_history):
     assert result['threshold'] == 11.97
     mock_get_history.assert_called_once_with(days=5)
 
-@patch('analyzer.get_daily_cost_history')
+@patch('src.analyzer.get_daily_cost_history')
 def test_analyze_cost_anomalies_not_detected(mock_get_history):
     """Tests when no cost anomaly is detected."""
     # Mock data: last day's cost is NOT > avg + 2.5 * std_dev
@@ -139,7 +139,7 @@ def test_analyze_cost_anomalies_not_detected(mock_get_history):
     assert result['threshold'] == 11.97
     mock_get_history.assert_called_once_with(days=5)
 
-@patch('analyzer.get_daily_cost_history')
+@patch('src.analyzer.get_daily_cost_history')
 def test_analyze_cost_anomalies_insufficient_data(mock_get_history):
     """Tests behavior with insufficient historical data."""
     mock_get_history.return_value = {'2024-01-01': 10.0} # Only one day
@@ -147,7 +147,7 @@ def test_analyze_cost_anomalies_insufficient_data(mock_get_history):
     assert result is None
     mock_get_history.assert_called_once_with(days=1)
 
-@patch('analyzer.get_daily_cost_history')
+@patch('src.analyzer.get_daily_cost_history')
 def test_analyze_cost_anomalies_fetch_failure(mock_get_history):
     """Tests behavior when history fetching fails."""
     mock_get_history.return_value = None

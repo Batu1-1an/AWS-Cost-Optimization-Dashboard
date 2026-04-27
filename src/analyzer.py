@@ -1,10 +1,10 @@
 import logging
-from data_fetcher import (
+from .data_fetcher import (
     get_cost_by_service, get_idle_ec2_instances, get_untagged_resources,
-    get_ebs_optimization_candidates, get_daily_cost_history, get_s3_bucket_analysis # Import new fetcher functions
+    get_ebs_optimization_candidates, get_daily_cost_history, get_s3_bucket_analysis
 )
-import numpy as np # For standard deviation calculation
-from aws_connector import AWS_REGION # Import default region for convenience
+import numpy as np
+from .aws_connector import AWS_REGION
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

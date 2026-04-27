@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime, timedelta
 import pandas as pd
-from aws_connector import get_client, AWS_REGION
-from aws_regions import AWS_REGIONS
+from .aws_connector import get_client, AWS_REGION
+from .aws_regions import AWS_REGIONS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -175,7 +175,7 @@ def get_idle_ec2_instances(region=AWS_REGION):
         logging.error(f"Error describing EC2 instances in region {region}: {e}")
         return None
 
-from utils import _check_missing_tags # Ensure import is here
+from .utils import _check_missing_tags
 
 # Remove the old function definition below
 

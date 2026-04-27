@@ -26,7 +26,7 @@ from aws_connector import AWS_REGION # Import the region used by default
 
 @mock_aws
 def test_get_cost_by_service_success():
-    """Tests successful cost fetching using patched data_fetcher.get_client."""
+    """Tests successful cost fetching using patched src.data_fetcher.get_client."""
     # NOTE: Moto's CE support is limited. This test relies on patching.
     mock_response = {
         'ResultsByTime': [{
@@ -43,7 +43,7 @@ def test_get_cost_by_service_success():
     }
 
     # Patch the get_client function *within the data_fetcher module*
-    with patch('data_fetcher.get_client') as mock_get_client:
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         # Configure the mock client instance returned by get_client('ce', ...)
         mock_ce_instance = Mock() # Use a simple Mock
         mock_ce_instance.get_cost_and_usage.return_value = mock_response
@@ -63,8 +63,8 @@ def test_get_cost_by_service_success():
 @mock_aws
 def test_get_cost_by_service_failure():
     """Tests handling of Cost Explorer API errors."""
-    # Patch data_fetcher.get_client
-    with patch('data_fetcher.get_client') as mock_get_client:
+    # Patch src.data_fetcher.get_client
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         # Configure the mock client instance to raise an exception
         mock_ce_instance = Mock() # Use a simple Mock
         mock_ce_instance.get_cost_and_usage.side_effect = Exception("AWS API Error")
@@ -107,8 +107,8 @@ def test_get_idle_ec2_instances_mixed():
     }
     no_metrics_response = {'Datapoints': []}
 
-    # Patch data_fetcher.get_client to return specific mocks
-    with patch('data_fetcher.get_client') as mock_get_client:
+    # Patch src.data_fetcher.get_client to return specific mocks
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         # Create a standard mock for the CloudWatch client
         mock_cw_instance = Mock()
 
@@ -161,7 +161,7 @@ def test_get_idle_ec2_instances_no_running():
 def test_get_idle_ec2_instances_api_error():
     """Tests handling of EC2 describe_instances errors."""
     # Patch the get_paginator method specifically for the ec2 client
-    with patch('data_fetcher.get_client') as mock_get_client, \
+    with patch('src.data_fetcher.get_client') as mock_get_client, \
          patch('botocore.client.BaseClient._make_api_call') as mock_api_call:
 
         # Simulate get_client returning a valid EC2 client initially
@@ -313,7 +313,7 @@ def test_get_untagged_resources_no_required_tags():
 def test_get_untagged_resources_instance_api_error():
     """Tests handling of EC2 describe_instances errors during tag check."""
     # Patch the specific API call made by the paginator
-    with patch('aws_connector.get_client'), \
+    with patch('src.aws_connector.get_client'), \
          patch('botocore.client.BaseClient._make_api_call') as mock_api_call:
 
         # Mock the API call for DescribeInstances to raise an error
@@ -439,7 +439,7 @@ def test_get_ebs_optimization_candidates_none():
 @mock_aws
 def test_get_ebs_optimization_candidates_api_error():
     """Tests handling of describe_volumes errors."""
-    with patch('data_fetcher.get_client') as mock_get_client:
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         mock_ec2 = Mock()
         mock_ec2.get_paginator.side_effect = Exception("DescribeVolumes Error")
         mock_get_client.return_value = mock_ec2
@@ -473,7 +473,7 @@ def test_get_daily_cost_history_success():
         ],
         'ResponseMetadata': {}
     }
-    with patch('data_fetcher.get_client') as mock_get_client:
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         mock_ce = Mock()
         mock_ce.get_cost_and_usage.return_value = mock_response
         mock_get_client.return_value = mock_ce
@@ -494,7 +494,7 @@ def test_get_daily_cost_history_success():
 @mock_aws
 def test_get_daily_cost_history_failure():
     """Tests handling errors during daily cost history fetching."""
-    with patch('data_fetcher.get_client') as mock_get_client:
+    with patch('src.data_fetcher.get_client') as mock_get_client:
         mock_ce = Mock()
         mock_ce.get_cost_and_usage.side_effect = Exception("CE History Error")
         mock_get_client.return_value = mock_ce

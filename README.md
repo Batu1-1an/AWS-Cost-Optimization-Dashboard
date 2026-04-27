@@ -135,7 +135,7 @@ All thresholds live at the top of `data_fetcher.py`:
 Start the development server:
 
 ```bash
-python app.py
+python -m src.app
 ```
 
 Open **http://127.0.0.1:5000** in your browser.
@@ -160,26 +160,30 @@ Set `FLASK_DEBUG=True` in your `.env` to enable hot-reloading and verbose loggin
 
 ```
 .
+├── src/
+│   ├── __init__.py
+│   ├── app.py                 # Flask routes & application entrypoint
+│   ├── analyzer.py            # Analysis orchestration layer
+│   ├── aws_connector.py       # boto3 session / client factory
+│   ├── aws_regions.py         # AWS region constants
+│   ├── data_fetcher.py        # AWS API calls (CE, EC2, CloudWatch, S3)
+│   └── utils.py               # Shared helpers (tag checking)
 ├── static/
-│   ├── style.css          # Dashboard styling (cards, tables, badges)
-│   └── script.js          # Frontend logic (Plotly charts, table rendering)
+│   ├── style.css              # Dashboard styling (cards, tables, badges)
+│   └── script.js              # Frontend logic (Plotly charts, table rendering)
 ├── templates/
-│   └── index.html         # Main dashboard template
+│   └── index.html             # Main dashboard template
 ├── tests/
-│   ├── test_analyzer.py   # Unit tests for analysis logic
-│   ├── test_app.py        # API endpoint integration tests
-│   ├── test_data_fetcher.py # Mocked AWS data-fetching tests
-│   └── test_utils.py      # Utility function tests
-├── .env                   # Credentials (DO NOT COMMIT)
+│   ├── __init__.py
+│   ├── test_analyzer.py       # Unit tests for analysis logic
+│   ├── test_app.py            # API endpoint integration tests
+│   ├── test_data_fetcher.py   # Mocked AWS data-fetching tests
+│   └── test_utils.py          # Utility function tests
+├── .env                       # Credentials (DO NOT COMMIT)
 ├── .gitignore
-├── analyzer.py            # Analysis orchestration layer
-├── app.py                 # Flask routes & application entrypoint
-├── aws_connector.py       # boto3 session / client factory
-├── aws_regions.py         # AWS region constants
-├── data_fetcher.py        # AWS API calls (CE, EC2, CloudWatch, S3)
-├── requirements.txt       # Python dependencies
-├── utils.py               # Shared helpers (tag checking)
-├── PLAN.md                # Original project plan
+├── requirements.txt           # Python dependencies
+├── PLAN.md                    # Original project plan
+├── LICENSE
 └── README.md
 ```
 
