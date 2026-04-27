@@ -71,5 +71,5 @@ def get_s3_optimization_api():
     return jsonify(s3_data)
 
 if __name__ == '__main__':
-    # Use debug=True for development, but disable in production
-    app.run(debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    app.run(debug=debug_mode)

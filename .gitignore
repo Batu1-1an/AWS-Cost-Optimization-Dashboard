@@ -124,3 +124,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS files
+desktop.ini
+.DS_Store?

@@ -145,27 +145,27 @@ def test_get_cost_anomalies_failure(mock_analyze, client):
     assert "error" in json.loads(response.data)
     mock_analyze.assert_called_once()
 
-# --- Test /api/cost-anomalies ---
+# --- Test /api/s3-optimization ---
 
-@patch('app.analyze_cost_anomalies')
-def test_get_cost_anomalies_success(mock_analyze, client):
-    """Tests successful response from /api/cost-anomalies."""
-    mock_data = {'latest_date': '2024-01-10', 'latest_cost': 150.5, 'is_anomaly': True}
+@patch('app.analyze_s3_optimization')
+def test_get_s3_optimization_success(mock_analyze, client):
+    """Tests successful response from /api/s3-optimization."""
+    mock_data = {'summary': {'total_buckets': 5}, 'buckets': [], 'optimization_opportunities': []}
     mock_analyze.return_value = mock_data
 
-    response = client.get('/api/cost-anomalies')
+    response = client.get('/api/s3-optimization')
 
     assert response.status_code == 200
     assert response.content_type == 'application/json'
     assert json.loads(response.data) == mock_data
     mock_analyze.assert_called_once()
 
-@patch('app.analyze_cost_anomalies')
-def test_get_cost_anomalies_failure(mock_analyze, client):
-    """Tests error response when analyzer fails for cost anomalies."""
+@patch('app.analyze_s3_optimization')
+def test_get_s3_optimization_failure(mock_analyze, client):
+    """Tests error response when analyzer fails for S3 optimization."""
     mock_analyze.return_value = None
 
-    response = client.get('/api/cost-anomalies')
+    response = client.get('/api/s3-optimization')
 
     assert response.status_code == 500
     assert response.content_type == 'application/json'
