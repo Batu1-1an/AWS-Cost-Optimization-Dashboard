@@ -1,100 +1,116 @@
 <div align="center">
   <h1>AWS Cost Optimization Dashboard</h1>
-  <p>A Flask-powered web dashboard that analyzes your AWS account for cost-saving opportunities — idle instances, untagged resources, EBS and S3 optimization, and cost anomaly detection.</p>
-
+  <p><em>Real-time visibility into AWS spend, idle resources, and savings opportunities — served through a clean, interactive web dashboard.</em></p>
   <p>
-    <img src="https://img.shields.io/badge/python-3.8%2B-blue?style=flat&logo=python" alt="Python 3.8+">
-    <img src="https://img.shields.io/badge/flask-3.x-lightgrey?style=flat&logo=flask" alt="Flask">
-    <img src="https://img.shields.io/badge/boto3-AWS_SDK-orange?style=flat&logo=amazonaws" alt="boto3">
-    <img src="https://img.shields.io/badge/plotly.js-charts-3cb4e6?style=flat&logo=plotly" alt="Plotly.js">
-    <img src="https://img.shields.io/badge/tests-pytest%20%7C%20moto-green?style=flat" alt="pytest + moto">
-    <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen?style=flat" alt="Apache 2.0">
+    <img src="https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python" alt="Python 3.8+">
+    <img src="https://img.shields.io/badge/Flask-3.x-lightgrey?style=flat-square&logo=flask" alt="Flask">
+    <img src="https://img.shields.io/badge/boto3-AWS_SDK-orange?style=flat-square&logo=amazonaws" alt="boto3">
+    <img src="https://img.shields.io/badge/Plotly.js-charts-3cb4e6?style=flat-square&logo=plotly" alt="Plotly.js">
+    <img src="https://img.shields.io/badge/pytest-moto-009a4e?style=flat-square&logo=pytest" alt="pytest + moto">
+    <img src="https://img.shields.io/badge/License-Apache_2.0-brightgreen?style=flat-square" alt="Apache 2.0">
   </p>
 </div>
 
 ---
 
-## Overview
+## Why This Dashboard?
 
-Connect the dashboard to your AWS account and get an instant bird's-eye view of cost distribution, underutilized resources, governance gaps, and potential savings — all served through a clean web interface with interactive charts and tables.
+Organizations waste an estimated **30–45%** of their cloud spend on underutilized resources, orphaned storage, and missing governance. AWS native consoles are powerful but fragmented — hopping between Cost Explorer, EC2, CloudWatch, S3, and Trusted Advisor makes it hard to see the full picture.
 
-| Module | What it does |
-|--------|-------------|
-| **Cost Explorer** | Breaks down spend by service (30-day lookback) |
-| **Idle EC2 Detection** | Flags instances with chronically low CPU via CloudWatch metrics |
-| **Tag Governance** | Scans EC2 + EBS for missing required tags |
-| **EBS Optimization** | Finds unattached volumes and gp2→gp3 upgrade candidates |
-| **S3 Optimization** | Analyzes storage classes, lifecycle policies, and savings potential |
-| **Anomaly Detection** | Statistical spike detection (std-dev based) on daily cost history |
+This dashboard consolidates the six most impactful cost-analysis signals into a single Flask web application. Point it at your account and get an instant, actionable view of where money is going and where it can be saved.
 
 ## Features
 
-- **Interactive cost pie chart** — see which services drive your monthly bill
-- **Idle instance table** — instances with avg CPU < 5 % and max CPU < 10 % over 14 days
-- **Untagged resource scanner** — configurable required tags (`Project`, `Owner`, etc.)
-- **EBS candidates dashboard** — unattached volumes + gp2 volumes flagged for upgrade
-- **S3 storage analysis** — detects `REDUCED_REDUNDANCY` usage, missing lifecycle policies, and recommends `STANDARD_IA` transitions with priority scoring
-- **Cost anomaly alerts** — compares latest daily cost against a rolling mean ± 2.5σ threshold
-- **Fully mocked test suite** — `pytest` + `moto` means zero AWS cost during development
+| Module | Detection Logic & Output |
+|--------|--------------------------|
+| **Cost Explorer** | 30-day spend breakdown by service via `ce:GetCostAndUsage`. Returns `{ServiceName: cost}`. Zero-cost services are filtered out automatically. |
+| **Idle EC2 Detection** | Queries 14 days of CloudWatch `CPUUtilization` metrics for every running instance. Flags instances where avg CPU < 5% **and** max CPU < 10%. Returns instance ID, region, metrics, and a human-readable reason. |
+| **Tag Governance** | Scans all EC2 instances (any state) and EBS volumes against a configurable required-tag list (default: `Project`, `Owner`). Returns resource ID, type, and the specific missing tags. |
+| **EBS Optimization** | Discovers unattached (available) volumes wasting money, and gp2 volumes eligible for a no-cost gp3 upgrade. Returns size, region, and upgrade reason. |
+| **S3 Optimization** | Analyzes every bucket for deprecated `REDUCED_REDUNDANCY` storage, missing lifecycle policies, and STANDARD→STANDARD_IA transition candidates. Scores each opportunity by priority (Critical / High / Medium / Low) and projects monthly and annual savings. |
+| **Anomaly Detection** | Fetches 60 days of daily cost history from Cost Explorer. Compares the latest day against a rolling mean ± 2.5σ threshold. Flags spikes automatically with date, cost, average, and threshold details. |
 
-## Tech Stack
+## Architecture
 
-| Technology | Purpose |
-|-----------|---------|
-| [Python](https://python.org) 3.8+ | Runtime |
-| [Flask](https://flask.palletsprojects.com) | Web framework & API |
-| [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) | AWS SDK (Cost Explorer, EC2, CloudWatch, S3) |
-| [Plotly.js](https://plotly.com/javascript/) | Client-side charts (pie, bar) |
-| [pandas](https://pandas.pydata.org) | Data aggregation & metric analysis |
-| [NumPy](https://numpy.org) | Standard deviation for anomaly detection |
-| [python-dotenv](https://github.com/theskumar/python-dotenv) | Environment variable management |
-| [pytest](https://pytest.org) | Test runner |
-| [moto](https://github.com/getmoto/moto) | AWS API mocking for tests |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        AWS Account                                  │
+│  ┌──────────┐  ┌─────────┐  ┌───────────┐  ┌──────────┐           │
+│  │Cost      │  │EC2      │  │CloudWatch │  │S3        │           │
+│  │Explorer  │  │Describe*│  │GetMetric  │  │List*     │           │
+│  └────┬─────┘  └────┬────┘  └─────┬─────┘  └────┬─────┘           │
+│       │              │             │              │                 │
+└───────┼──────────────┼─────────────┼──────────────┼─────────────────┘
+        │              │             │              │
+        ▼              ▼             ▼              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  aws_connector.py  ───  boto3 Session / Client Factory              │
+│       │                                                             │
+│       ▼                                                             │
+│  data_fetcher.py   ───  Raw API calls (CE, EC2, CW, S3)            │
+│       │                                                             │
+│       ▼                                                             │
+│  analyzer.py       ───  Aggregation, anomaly math, scoring          │
+│       │                                                             │
+│       ▼                                                             │
+│  app.py            ───  Flask routes (/) + (/api/*)                │
+│       │                                                             │
+└───────┼─────────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  templates/index.html  ───  Server-rendered dashboard shell         │
+│       +                                                             │
+│  static/style.css     ───  Card layout, tables, badges              │
+│  static/script.js     ───  Fetch + Plotly.js chart rendering        │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-## Prerequisites
+## Screenshots
 
-- Python 3.8 or later
-- An AWS account with **Cost Explorer** enabled
-- IAM credentials with the permissions listed below
-- `pip` and `venv` available on your system
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><strong>Cost Explorer</strong></td>
+      <td align="center"><strong>Idle Instances</strong></td>
+      <td align="center"><strong>S3 Optimization</strong></td>
+    </tr>
+    <tr>
+      <td><img src="https://via.placeholder.com/320x200/1a1a2e/e94560?text=Cost+Explorer+Pie+Chart" alt="Cost Explorer" width="320"></td>
+      <td><img src="https://via.placeholder.com/320x200/16213e/0f3460?text=Idle+EC2+Table" alt="Idle EC2" width="320"></td>
+      <td><img src="https://via.placeholder.com/320x200/1a1a2e/e94560?text=S3+Priority+List" alt="S3 Optimization" width="320"></td>
+    </tr>
+    <tr>
+      <td><em>Interactive Plotly.js pie chart breaking down spend by service</em></td>
+      <td><em>Tabular view of chronically underutilized instances with CPU metrics</em></td>
+      <td><em>Priority-scored recommendations with projected savings</em></td>
+    </tr>
+  </table>
+</div>
 
-## Installation
+## Quick Start
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Batu1-1an/AWS-Cost-Optimization-Dashboard.git
 cd AWS-Cost-Optimization-Dashboard
 
-# 2. Create and activate a virtual environment
 python -m venv .venv
+source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 
-# Windows (PowerShell)
-.\.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
+
+echo "AWS_ACCESS_KEY_ID=AKIA..." >> .env
+echo "AWS_SECRET_ACCESS_KEY=..." >> .env
+echo "AWS_REGION=us-east-1" >> .env
+
+python -m src.app
 ```
+
+Open **http://127.0.0.1:5000** in your browser.
 
 ## Configuration
 
-### Environment Variables
-
-Create a `.env` file in the project root (it is already in `.gitignore`):
-
-```dotenv
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-AWS_REGION=us-east-1
-```
-
-If you prefer not to use a `.env` file, set the same variables in your shell environment.
-
-### IAM Permissions
-
-Attach the following minimum policy to the IAM user / role:
+### IAM Policy (Minimum Required)
 
 ```json
 {
@@ -118,43 +134,58 @@ Attach the following minimum policy to the IAM user / role:
 }
 ```
 
-### Tuning detection parameters
+### Environment Variables
 
-All thresholds live at the top of `data_fetcher.py`:
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AWS_ACCESS_KEY_ID` | Yes | — | IAM access key |
+| `AWS_SECRET_ACCESS_KEY` | Yes | — | IAM secret key |
+| `AWS_REGION` | No | `us-east-1` | Default region for API calls |
+| `FLASK_DEBUG` | No | `False` | Enable Flask hot-reloading & verbose logging |
+
+### Detection Thresholds
+
+All tunable constants live at the top of `src/data_fetcher.py`:
 
 | Constant | Default | Controls |
 |----------|---------|----------|
-| `IDLE_CHECK_PERIOD_DAYS` | 14 | CloudWatch lookback window |
-| `IDLE_AVG_CPU_THRESHOLD` | 5.0 | Average CPU % for idle flag |
-| `IDLE_MAX_CPU_THRESHOLD` | 10.0 | Maximum CPU % for idle flag |
-| `REQUIRED_TAGS` | `[Project, Owner]` | Tags checked by the governance scanner |
-| `std_dev_threshold` | 2.5 | σ multiplier for anomaly detection (`analyze_cost_anomalies`) |
+| `IDLE_CHECK_PERIOD_DAYS` | `14` | CloudWatch metric lookback window |
+| `IDLE_AVG_CPU_THRESHOLD` | `5.0` | Average CPU % below which an instance is flagged |
+| `IDLE_MAX_CPU_THRESHOLD` | `10.0` | Maximum CPU % never exceeded for idle flag |
+| `REQUIRED_TAGS` | `['Project', 'Owner']` | Tag keys checked by governance scanner |
+| `std_dev_threshold` | `2.5` | Sigma multiplier in anomaly detection (`analyzer.py`) |
+| `CW_PERIOD_SECONDS` | `86400` | CloudWatch metric aggregation period (24 h) |
 
-## Usage
+## API Reference
 
-Start the development server:
+| Endpoint | Method | Response |
+|----------|--------|----------|
+| `/` | `GET` | Dashboard HTML |
+| `/api/cost-by-service` | `GET` | `{"ServiceName": cost, …}` |
+| `/api/idle-instances` | `GET` | `[{"InstanceId", "Region", "AvgCPU", "MaxCPU", "Reason"}, …]` |
+| `/api/untagged-resources` | `GET` | `{"Instances": […], "Volumes": […]}` |
+| `/api/ebs-optimization` | `GET` | `{"UnattachedVolumes": […], "Gp2Volumes": […]}` |
+| `/api/s3-optimization` | `GET` | `{"summary": {}, "buckets": […], "priority_recommendations": […], "cost_analysis": {}}` |
+| `/api/cost-anomalies` | `GET` | `{"latest_date", "latest_cost", "is_anomaly", "average_cost", "std_dev", "threshold", …}` |
+
+All API endpoints return `500 {"error": "..."}` on failure. Errors are logged server-side with `logging`.
+
+## Testing
+
+The entire test suite uses **moto** to mock AWS services — tests run with zero real credentials and incur **no AWS costs**.
 
 ```bash
-python -m src.app
+python -m pytest -v
 ```
 
-Open **http://127.0.0.1:5000** in your browser.
+### Coverage
 
-### API Endpoints
-
-| Endpoint | Method | Returns |
-|----------|--------|---------|
-| `/` | GET | Dashboard HTML |
-| `/api/cost-by-service` | GET | `{ "ServiceName": cost, ... }` |
-| `/api/idle-instances` | GET | `[ { InstanceId, Region, AvgCPU, Reason }, ... ]` |
-| `/api/untagged-resources` | GET | `{ Instances: [...], Volumes: [...] }` |
-| `/api/ebs-optimization` | GET | `{ UnattachedVolumes: [...], Gp2Volumes: [...] }` |
-| `/api/s3-optimization` | GET | `{ summary, buckets, priority_recommendations, cost_analysis }` |
-| `/api/cost-anomalies` | GET | `{ latest_date, latest_cost, is_anomaly, ... }` |
-
-### Debug mode
-
-Set `FLASK_DEBUG=True` in your `.env` to enable hot-reloading and verbose logging.
+| Module | Tests | What's Covered |
+|--------|-------|----------------|
+| `test_utils.py` | 9 parametrized cases | Missing tags, empty sets, `None` input, case sensitivity |
+| `test_data_fetcher.py` | Cost Explorer, EC2, EBS, S3, CloudWatch | Mocked responses, zero-cost filtering, pagination, error handling, empty accounts, mixed idle/active/no-metrics instances |
+| `test_analyzer.py` | Analyzer orchestration | Success/failure passthrough, anomaly math (flagged, not flagged, insufficient data, fetch failure) |
+| `test_app.py` | All 6 API routes + index | 200 success paths, 500 error paths for every endpoint |
 
 ## Project Structure
 
@@ -162,51 +193,39 @@ Set `FLASK_DEBUG=True` in your `.env` to enable hot-reloading and verbose loggin
 .
 ├── src/
 │   ├── __init__.py
-│   ├── app.py                 # Flask routes & application entrypoint
-│   ├── analyzer.py            # Analysis orchestration layer
-│   ├── aws_connector.py       # boto3 session / client factory
-│   ├── aws_regions.py         # AWS region constants
-│   ├── data_fetcher.py        # AWS API calls (CE, EC2, CloudWatch, S3)
-│   └── utils.py               # Shared helpers (tag checking)
+│   ├── app.py                  # Flask routes & entrypoint
+│   ├── analyzer.py             # Analysis orchestration, anomaly detection, S3 scoring
+│   ├── aws_connector.py        # boto3 session / client factory
+│   ├── aws_regions.py          # Region constant list
+│   ├── data_fetcher.py         # All AWS API calls (CE, EC2, CW, S3)
+│   └── utils.py                # Tag-checking helper
 ├── static/
-│   ├── style.css              # Dashboard styling (cards, tables, badges)
-│   └── script.js              # Frontend logic (Plotly charts, table rendering)
+│   ├── style.css               # Dashboard layout (cards, tables, badges)
+│   └── script.js               # Fetch logic & Plotly.js chart rendering
 ├── templates/
-│   └── index.html             # Main dashboard template
+│   └── index.html              # Main dashboard shell
 ├── tests/
 │   ├── __init__.py
-│   ├── test_analyzer.py       # Unit tests for analysis logic
-│   ├── test_app.py            # API endpoint integration tests
-│   ├── test_data_fetcher.py   # Mocked AWS data-fetching tests
-│   └── test_utils.py          # Utility function tests
-├── .env                       # Credentials (DO NOT COMMIT)
+│   ├── test_analyzer.py
+│   ├── test_app.py
+│   ├── test_data_fetcher.py
+│   └── test_utils.py
+├── .env                        # Credentials (gitignored — DO NOT COMMIT)
 ├── .gitignore
-├── requirements.txt           # Python dependencies
-├── PLAN.md                    # Original project plan
-├── LICENSE
+├── requirements.txt            # Python dependencies
+├── PLAN.md                     # Original project plan
+├── LICENSE                     # Apache 2.0
 └── README.md
 ```
 
-## Testing
-
-All tests use [moto](https://github.com/getmoto/moto) to mock AWS services, so they run **without real credentials or incurring any AWS cost**.
-
-```bash
-# From the project root with the virtual environment active
-python -m pytest -v
-```
-
-Test coverage includes:
-
-- **Cost Explorer** — mocked responses, zero-cost filtering, API error handling
-- **Idle EC2** — mixed idle/active/no-metrics instances, empty accounts, pagination errors
-- **Untagged resources** — fully/missing/no-tag instances and volumes, custom tag sets, empty accounts, API failures
-- **EBS optimization** — unattached volumes, gp2 detection, root volumes, API errors
-- **Daily cost history** — sorted results, zero-cost days, error handling
-- **Cost anomaly detection** — anomaly flagged, anomaly not flagged, insufficient data, fetch failure
-- **Utils** — parametrized tag-checking logic (9 cases covering missing tags, empty sets, case sensitivity)
-- **App routes** — all 6 API endpoints tested for both success and failure, index route verified
-
 ## License
 
-Distributed under the Apache License 2.0. See [LICENSE](LICENSE) for the full text.
+Distributed under the **Apache License 2.0**. See [LICENSE](LICENSE) for the full text.
+
+---
+
+<div align="center">
+  <sub>Built with Flask, boto3, and Plotly.js · Maintained by <a href="https://github.com/Batu1-1an">@Batu1-1an</a></sub>
+  <br>
+  <sub>Found an issue? <a href="https://github.com/Batu1-1an/AWS-Cost-Optimization-Dashboard/issues">Open a GitHub issue</a></sub>
+</div>
